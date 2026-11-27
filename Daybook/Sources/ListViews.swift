@@ -39,6 +39,10 @@ struct AgendaRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .rowSwipe(trailing: model.info(for: e.calendarID)?.allowsModifications == false ? nil :
+                        SwipeAction(title: "Delete", icon: "trash", color: Theme.danger, removes: true) {
+                            model.deleteEvent(e)
+                        })
             .accessibilityIdentifier("row-\(e.title)")
         case .task(let t):
             TaskRow(task: t, showDue: false)
@@ -89,6 +93,14 @@ struct TaskRow: View {
         }
         .padding(.vertical, 7)
         .opacity(task.isCompleted ? 0.6 : 1)
+        .rowSwipe(
+            leading: SwipeAction(title: task.isCompleted ? "Not done" : "Done",
+                                 icon: task.isCompleted ? "arrow.uturn.backward" : "checkmark",
+                                 color: Color(hex: "#2fb35a")) { model.toggle(task) },
+            trailing: task.isCompleted ? nil :
+                SwipeAction(title: "Postpone", icon: "arrow.turn.up.right", color: Color(hex: "#ff9500")) {
+                    model.postpone(task)
+                })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-\(task.title)")
     }

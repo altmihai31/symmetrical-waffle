@@ -204,10 +204,10 @@ struct WeekView: View {
         GeometryReader { geo in
             let rowH = geo.size.height / 7
             VStack(spacing: 0) {
-                ForEach(days, id: \.self) { day in
+                ForEach(Array(days.enumerated()), id: \.element) { index, day in
                     let items = DayContent.items(on: day, events: events, tasks: tasks, includeTasks: true,
                                                  includeMultiDay: true, calendar: cal)
-                    row(day: day, items: items, height: rowH, cal: cal)
+                    WeekRow(day: day, items: items, height: rowH, labelWidth: labelWidth, tileWidth: tileWidth, index: index)
                 }
             }
         }
@@ -215,22 +215,36 @@ struct WeekView: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 30).onEnded { v in
                 if abs(v.translation.height) > abs(v.translation.width) * 1.5, abs(v.translation.height) > 80 {
-                    model.shift(by: v.translation.height < 0 ? 1 : -1)
+                    let next = v.translation.height < 0
+                    model.shift(by: next ? 1 : -1, edge: next ? .bottom : .top)
                 }
             }
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("weekView")
     }
+}
 
-    private func row(day: Date, items: [DayItem], height: CGFloat, cal: Calendar) -> some View {
+/// One day of the week view; entries can be dropped on it to move them to this day.
+struct WeekRow: View {
+    @EnvironmentObject var model: AppModel
+    let day: Date
+    let items: [DayItem]
+    let height: CGFloat
+    let labelWidth: CGFloat
+    let tileWidth: CGFloat
+    var index = 0
+    @State private var dropTargeted = false
+
+    var body: some View {
+        let cal = model.calendar
         let today = cal.isDateInToday(day)
         let symbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         let weekday = symbols[cal.component(.weekday, from: day) - 1]
         let weekend = [1, 7].contains(cal.component(.weekday, from: day))
         return HStack(spacing: 0) {
             Button {
-                withAnimation { model.select(day); model.mode = .day }
+                model.navigate(.zoom(UnitPoint(x: 0.08, y: (CGFloat(index) + 0.5) / 7))) { model.select(day); model.mode = .day }
             } label: {
                 VStack(spacing: 0) {
                     Text(weekday).font(.system(size: 14))
@@ -244,6 +258,7 @@ struct WeekView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("weekday-\(DayCell.key(day, cal))")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 1) {
                     ForEach(items) { item in
@@ -259,7 +274,15 @@ struct WeekView: View {
             }
         }
         .frame(height: height)
+        .background(dropTargeted ? Theme.accentSoft : .clear)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
+        .overlay { if dropTargeted { Rectangle().stroke(Theme.accent, lineWidth: 2) } }
+        .dropDestination(for: String.self) { payloads, _ in
+            model.drop(payloads, on: day)
+        } isTargeted: { on in
+            withAnimation(.easeInOut(duration: 0.12)) { dropTargeted = on }
+            if on { Haptics.tick() }
+        }
     }
 }
 
@@ -289,6 +312,7 @@ struct WeekTile: View {
                 }
             }
             .buttonStyle(.plain)
+            .draggable("event:\(e.id)") { DragPreview(title: e.title, color: c.base) }
             .accessibilityIdentifier("tile-\(e.title)")
         case .task(let t):
             let c = ChipColors(hex: model.colorHex(for: t), scheme: scheme)
@@ -305,6 +329,7 @@ struct WeekTile: View {
                 .buttonStyle(.plain)
             }
             .opacity(t.isCompleted ? 0.55 : 1)
+            .draggable("task:\(t.id)") { DragPreview(title: t.title, color: c.base) }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("tile-\(t.title)")
         }
@@ -337,7 +362,7 @@ struct WeekStrip: View {
                         let label = DateText.weekStripLabel(start, calendar: cal)
                         let shown = cal.isDate(start, inSameDayAs: model.selectedDate)
                         Button {
-                            withAnimation(.easeInOut(duration: 0.25)) { model.select(start) }
+                            model.go(to: start)
                         } label: {
                             VStack(spacing: 0) {
                                 Text(label.months).font(.system(size: 13))
@@ -379,7 +404,7 @@ struct DayView: View {
                 ForEach(Array(week.enumerated()), id: \.offset) { i, day in
                     let today = cal.isDateInToday(day)
                     let selected = cal.isDate(day, inSameDayAs: model.selectedDate)
-                    Button { withAnimation { model.select(day) } } label: {
+                    Button { model.go(to: day) } label: {
                         VStack(spacing: 3) {
                             Text(symbols[i]).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink2)
                             Text("\(cal.component(.day, from: day))")

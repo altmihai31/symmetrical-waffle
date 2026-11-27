@@ -35,6 +35,7 @@ struct EntryChip: View {
             .clipShape(RoundedRectangle(cornerRadius: 3))
         }
         .buttonStyle(.plain)
+        .draggable("event:\(e.id)") { DragPreview(title: e.title, color: c.base) }
         .accessibilityIdentifier("chip-\(e.title)")
     }
 
@@ -50,6 +51,7 @@ struct EntryChip: View {
                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(c.base, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .draggable("event:\(e.id)") { DragPreview(title: e.title, color: c.base) }
         .accessibilityIdentifier("chip-\(e.title)")
     }
 
@@ -73,8 +75,27 @@ struct EntryChip: View {
         .background(c.fill.opacity(0.7))
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .opacity(t.isCompleted ? 0.55 : 1)
+        .draggable("task:\(t.id)") { DragPreview(title: t.title, color: c.base) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chip-\(t.title)")
+    }
+}
+
+/// What follows the finger while an entry is dragged to another day.
+struct DragPreview: View {
+    let title: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 4, height: 18)
+            Text(title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 9).fill(Color(white: 0.16)))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(color, lineWidth: 1.5))
     }
 }
 
@@ -139,6 +160,7 @@ struct MultiDayBar: View {
             .clipShape(RoundedRectangle(cornerRadius: 3))
         }
         .buttonStyle(.plain)
+        .draggable("event:\(event.id)") { DragPreview(title: event.title, color: c.base) }
         .accessibilityIdentifier("bar-\(event.title)")
     }
 }

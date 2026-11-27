@@ -35,6 +35,26 @@ enum SheetRoute: Identifiable {
     }
 }
 
+/// How the main content animates when the page changes.
+enum PageMotion: Equatable {
+    case fade
+    case slide(Edge)          // the new page comes in from this edge
+    case zoom(UnitPoint)      // the new page grows out of this point
+
+    var transition: AnyTransition {
+        switch self {
+        case .fade:
+            return .opacity
+        case .slide(let edge):
+            let opposite: Edge = [.top: .bottom, .bottom: .top, .leading: .trailing, .trailing: .leading][edge]!
+            return .asymmetric(insertion: .move(edge: edge), removal: .move(edge: opposite))
+        case .zoom(let anchor):
+            return .asymmetric(insertion: .scale(scale: 0.12, anchor: anchor).combined(with: .opacity),
+                               removal: .scale(scale: 1.15, anchor: anchor).combined(with: .opacity))
+        }
+    }
+}
+
 struct UndoToast: Identifiable {
     let id = UUID()
     let message: String
@@ -44,7 +64,10 @@ struct UndoToast: Identifiable {
 @MainActor
 final class AppModel: ObservableObject {
     // Navigation state
-    @Published var mode: ViewMode = .month
+    @Published var mode: ViewMode = .month {
+        didSet { if oldValue != mode { Haptics.tap() } }
+    }
+    @Published var motion: PageMotion = .fade
     @Published var selectedDate: Date
     @Published var sheet: SheetRoute?
     @Published var drawerOpen = false
@@ -203,15 +226,56 @@ final class AppModel: ObservableObject {
         select(Date())
     }
 
-    func shift(by value: Int) {
+    /// Sets how the page will animate, then makes the change on the next run loop so the
+    /// outgoing page already carries the new transition.
+    func navigate(_ motion: PageMotion, _ change: @escaping () -> Void) {
+        self.motion = motion
+        motionReset?.cancel()
+        motionReset = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 15_000_000)
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) { change() }
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            if !Task.isCancelled { self.motion = .fade }
+        }
+    }
+    private var motionReset: Task<Void, Never>?
+
+    /// Moves to the next or previous period. `edge` is where the new page comes in from.
+    func shift(by value: Int, edge: Edge? = nil) {
         let unit: Calendar.Component
         switch mode {
         case .day: unit = .day
         case .week: unit = .weekOfYear
         default: unit = .month
         }
-        withAnimation(.easeInOut(duration: 0.25)) {
-            select(DateMath.shift(selectedDate, by: value, unit: unit, calendar: calendar))
+        let target = DateMath.shift(selectedDate, by: value, unit: unit, calendar: calendar)
+        Haptics.tick()
+        navigate(.slide(edge ?? (value > 0 ? .trailing : .leading))) { self.select(target) }
+    }
+
+    /// Jumps to a date, sliding in from the side it lies on.
+    func go(to date: Date) {
+        let d = calendar.startOfDay(for: date)
+        guard d != selectedDate else { return }
+        navigate(.slide(d > selectedDate ? .trailing : .leading)) { self.select(d) }
+    }
+
+    /// Opens the Day view, growing it out of `anchor` (a point in the month grid).
+    func zoomIntoDay(_ day: Date, from anchor: UnitPoint) {
+        navigate(.zoom(anchor)) {
+            self.select(day)
+            self.mode = .day
+        }
+    }
+
+    /// The identity of the page on screen; a change animates with `motion`.
+    var pageKey: String {
+        let c = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+        switch mode {
+        case .month: return "month-\(c.year ?? 0)-\(c.month ?? 0)"
+        case .week, .day: return "\(mode.rawValue)-\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
+        case .list, .tasks: return mode.rawValue
         }
     }
 
@@ -280,6 +344,7 @@ final class AppModel: ObservableObject {
     }
 
     func toggle(_ task: TaskItem) {
+        Haptics.tap()
         var t = task
         t.isCompleted.toggle()
         t.completionDate = t.isCompleted ? Date() : nil
@@ -319,6 +384,74 @@ final class AppModel: ObservableObject {
             _ = self.perform { try self.backend.save(task, isNew: true) }
             Task { self.tasks = await self.backend.tasks() }
         }
+    }
+
+    // MARK: Drag to reschedule, postpone
+
+    /// Handles a drop of "event:<id>" or "task:<id>" on a day.
+    func drop(_ payloads: [String], on day: Date) -> Bool {
+        guard let p = payloads.first else { return false }
+        if p.hasPrefix("event:") {
+            let id = String(p.dropFirst("event:".count))
+            guard let e = events.first(where: { $0.id == id }) else { return false }
+            return move(e, to: day)
+        }
+        if p.hasPrefix("task:") {
+            let id = String(p.dropFirst("task:".count))
+            guard let t = tasks.first(where: { $0.id == id }) else { return false }
+            return move(t, to: day)
+        }
+        return false
+    }
+
+    @discardableResult
+    func move(_ event: CalEvent, to day: Date) -> Bool {
+        let cal = calendar
+        guard !cal.isDate(event.start, inSameDayAs: day) else { return false }
+        if let info = info(for: event.calendarID), !info.allowsModifications {
+            errorMessage = "\(info.title) is read-only, so its events can't be moved."
+            return false
+        }
+        var moved = event
+        let r = Reschedule.move(start: event.start, end: event.end, toDay: day, calendar: cal)
+        moved.start = r.start
+        moved.end = r.end
+        var saved: CalEvent?
+        guard perform({ saved = try backend.save(moved, isNew: false) }) else { return false }
+        Haptics.success()
+        withAnimation(.easeInOut(duration: 0.25)) { reloadEvents() }
+        showToast("Moved to \(DateText.shortDayComma(day, calendar: cal))") { [weak self] in
+            guard let self else { return }
+            var restore = event
+            restore.id = saved?.id ?? moved.id
+            _ = self.perform { try self.backend.save(restore, isNew: false) }
+            withAnimation { self.reloadEvents() }
+        }
+        return true
+    }
+
+    @discardableResult
+    func move(_ task: TaskItem, to day: Date) -> Bool {
+        let cal = calendar
+        if let due = task.due, cal.isDate(due, inSameDayAs: day) { return false }
+        var t = task
+        t.due = Reschedule.move(due: task.due, toDay: day, calendar: cal)
+        Haptics.success()
+        apply(task: t)
+        showToast("Moved to \(DateText.shortDayComma(day, calendar: cal))") { [weak self] in self?.apply(task: task) }
+        return true
+    }
+
+    func postpone(_ task: TaskItem) {
+        let cal = calendar
+        var t = task
+        let due = Reschedule.postponed(due: task.due, now: Date(), calendar: cal)
+        t.due = due
+        Haptics.tap()
+        apply(task: t)
+        let day = DateText.dayHeader(due, now: Date(), calendar: cal)
+        let label = day == "Tomorrow" ? "tomorrow" : DateText.shortDayComma(due, calendar: cal)
+        showToast("Postponed to \(label)") { [weak self] in self?.apply(task: task) }
     }
 
     func setVisible(_ id: String, _ visible: Bool) {

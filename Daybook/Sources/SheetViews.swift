@@ -922,9 +922,14 @@ struct WheelDatePicker: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
+    @MainActor
     final class Coordinator: NSObject {
         var parent: WheelDatePicker
         init(parent: WheelDatePicker) { self.parent = parent }
-        @objc func changed(_ sender: UIDatePicker) { parent.date = sender.date }
+        // Fires when a wheel settles on a new value.
+        @objc func changed(_ sender: UIDatePicker) {
+            Haptics.tick()
+            parent.date = sender.date
+        }
     }
 }

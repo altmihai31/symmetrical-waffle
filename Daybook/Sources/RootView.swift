@@ -54,7 +54,8 @@ struct RootView: View {
             HStack(spacing: 0) {
                 ForEach(ViewMode.allCases) { m in
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        guard model.mode != m || model.searchOpen else { return }
+                        model.navigate(.fade) {
                             model.mode = m
                             model.searchOpen = false
                         }
@@ -105,8 +106,15 @@ struct RootView: View {
             }
             .background(Theme.chrome)
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.bg)
+                    .id(model.pageKey)
+                    .transition(model.motion.transition)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
             if model.access == .denied && !model.isDemo {
                 AccessBanner()
             }
@@ -174,7 +182,7 @@ struct TitleRow: View {
                 .accessibilityIdentifier("titleLabel")
             Spacer()
             if !cal.isDate(model.selectedDate, inSameDayAs: Date()) || model.mode == .tasks {
-                Button("Today") { withAnimation { model.goToday() } }
+                Button("Today") { model.go(to: Date()) }
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.accent)
                     .accessibilityIdentifier("todayButton")
@@ -275,9 +283,10 @@ struct MonthStrip: View {
                         let shown = cal.isDate(m, equalTo: model.selectedDate, toGranularity: .month)
                         let current = cal.isDate(m, equalTo: Date(), toGranularity: .month)
                         Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                if model.mode != .month { model.mode = .month }
-                                model.select(m)
+                            if model.mode != .month {
+                                model.navigate(.fade) { model.mode = .month; model.select(m) }
+                            } else {
+                                model.go(to: m)
                             }
                         } label: {
                             Text(DateText.monthName(m, calendar: cal, short: true))

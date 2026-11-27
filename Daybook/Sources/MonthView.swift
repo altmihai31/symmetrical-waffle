@@ -29,8 +29,9 @@ struct MonthView: View {
                             .frame(width: colW, height: headerHeight)
                     }
                 }
-                ForEach(grid.weeks, id: \.self) { week in
-                    weekRow(week, grid: grid, events: events, tasks: tasks, colW: colW, rowH: rowH, cal: cal)
+                ForEach(Array(grid.weeks.enumerated()), id: \.offset) { r, week in
+                    weekRow(week, row: r, grid: grid, events: events, tasks: tasks, colW: colW, rowH: rowH,
+                            size: geo.size, cal: cal)
                 }
             }
         }
@@ -39,16 +40,16 @@ struct MonthView: View {
             DragGesture(minimumDistance: 25)
                 .onEnded { v in
                     let dx = v.translation.width, dy = v.translation.height
-                    if abs(dx) > abs(dy), abs(dx) > 50 { model.shift(by: dx < 0 ? 1 : -1) }
-                    else if abs(dy) > abs(dx), abs(dy) > 60 { model.shift(by: dy < 0 ? 1 : -1) }
+                    if abs(dx) > abs(dy), abs(dx) > 50 { model.shift(by: dx < 0 ? 1 : -1, edge: dx < 0 ? .trailing : .leading) }
+                    else if abs(dy) > abs(dx), abs(dy) > 60 { model.shift(by: dy < 0 ? 1 : -1, edge: dy < 0 ? .bottom : .top) }
                 }
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("monthView")
     }
 
-    private func weekRow(_ week: [Date], grid: MonthGrid, events: [CalEvent], tasks: [TaskItem],
-                         colW: CGFloat, rowH: CGFloat, cal: Calendar) -> some View {
+    private func weekRow(_ week: [Date], row: Int, grid: MonthGrid, events: [CalEvent], tasks: [TaskItem],
+                         colW: CGFloat, rowH: CGFloat, size: CGSize, cal: Calendar) -> some View {
         let segments = MonthLayout.barSegments(week: week, events: events, calendar: cal)
         let reserved = MonthLayout.reservedLanes(for: segments)
         let byID = Dictionary(events.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -58,9 +59,12 @@ struct MonthView: View {
             HStack(spacing: 0) {
                 ForEach(Array(week.enumerated()), id: \.offset) { col, day in
                     let items = DayContent.items(on: day, events: events, tasks: tasks, includeTasks: true, calendar: cal)
+                    // Where this cell sits in the month grid, for the zoom into its Day view.
+                    let anchor = UnitPoint(x: (CGFloat(col) + 0.5) * colW / max(size.width, 1),
+                                           y: (headerHeight + (CGFloat(row) + 0.5) * rowH) / max(size.height, 1))
                     DayCell(day: day, items: items, reservedLines: reserved[col],
                             inMonth: grid.isInMonth(day, calendar: cal), selectedWeek: selectedWeek,
-                            width: colW, height: rowH, dateRow: dateRow, line: line, chip: chip)
+                            width: colW, height: rowH, dateRow: dateRow, line: line, chip: chip, anchor: anchor)
                 }
             }
             ForEach(segments, id: \.self) { seg in
@@ -88,6 +92,8 @@ struct DayCell: View {
     let dateRow: CGFloat
     let line: CGFloat
     let chip: CGFloat
+    var anchor: UnitPoint = .center
+    @State private var dropTargeted = false
 
     var body: some View {
         let cal = model.calendar
@@ -135,13 +141,25 @@ struct DayCell: View {
         .frame(width: width, height: height, alignment: .top)
         .background(background(isSelected: isSelected))
         .overlay(Rectangle().stroke(Theme.line, lineWidth: 0.5))
+        .overlay {
+            if dropTargeted {
+                Rectangle().fill(Theme.accentSoft).overlay(Rectangle().stroke(Theme.accent, lineWidth: 2))
+            }
+        }
         .contentShape(Rectangle())
         .onTapGesture {
             if isSelected {
-                withAnimation(.easeInOut(duration: 0.2)) { model.mode = .day }
+                model.zoomIntoDay(day, from: anchor)
             } else {
+                Haptics.tick()
                 withAnimation(.easeInOut(duration: 0.15)) { model.select(day) }
             }
+        }
+        .dropDestination(for: String.self) { payloads, _ in
+            model.drop(payloads, on: day)
+        } isTargeted: { on in
+            withAnimation(.easeInOut(duration: 0.12)) { dropTargeted = on }
+            if on { Haptics.tick() }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("day-\(Self.key(day, cal))")

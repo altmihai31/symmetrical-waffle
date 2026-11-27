@@ -105,6 +105,58 @@ final class DaybookUITests: XCTestCase {
         snap("14-task-completed")
     }
 
+    private func text(beginningWith prefix: String) -> XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
+    }
+
+    func testSwipeAndDragGestures() {
+        app.launch()
+        XCTAssertTrue(el("monthView").waitForExistence(timeout: 15))
+
+        // Swipe a task right to complete it, and left to postpone it.
+        tap("tab-Tasks")
+        let rent = el("task-Pay rent")
+        XCTAssertTrue(rent.waitForExistence(timeout: 5))
+        rent.swipeRight()
+        XCTAssertTrue(text(beginningWith: "Task completed").waitForExistence(timeout: 5))
+        let groceries = el("task-Groceries")
+        XCTAssertTrue(groceries.waitForExistence(timeout: 5))
+        groceries.swipeLeft()
+        XCTAssertTrue(text(beginningWith: "Postponed to").waitForExistence(timeout: 5))
+        snap("17-task-swiped")
+
+        // Swipe an event left to delete it.
+        tap("tab-List")
+        let run = el("row-Morning run")
+        XCTAssertTrue(run.waitForExistence(timeout: 5))
+        run.swipeLeft()
+        XCTAssertTrue(text(beginningWith: "Event deleted").waitForExistence(timeout: 5))
+        snap("18-event-swiped")
+
+        // Long-press a week tile and drop it on the first day.
+        tap("tab-Week")
+        XCTAssertTrue(el("weekView").waitForExistence(timeout: 5))
+        let target = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'weekday-'")).firstMatch
+        let tile = el("tile-Book club")
+        XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        XCTAssertTrue(target.waitForExistence(timeout: 5))
+        tile.press(forDuration: 1.0, thenDragTo: target)
+        XCTAssertTrue(text(beginningWith: "Moved to").waitForExistence(timeout: 5))
+        snap("19-week-after-drag")
+
+        // Tap the selected month cell to zoom into its Day view.
+        tap("tab-Month")
+        XCTAssertTrue(el("monthView").waitForExistence(timeout: 5))
+        let key = DateFormatter()
+        key.calendar = Calendar(identifier: .gregorian)
+        key.locale = Locale(identifier: "en_US_POSIX")
+        key.dateFormat = "yyyy-MM-dd"
+        tap("day-\(key.string(from: Date()))")
+        XCTAssertTrue(el("dayView").waitForExistence(timeout: 5))
+        snap("20-day-after-zoom")
+    }
+
     func testLightMode() {
         app.launchArguments += ["-daybook.appearance", "Light"]
         app.launch()

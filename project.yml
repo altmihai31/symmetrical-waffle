@@ -27,7 +27,9 @@ targets:
       properties:
         CFBundleDisplayName: Daybook
         UILaunchScreen:
-          UIColorName: ""
+          UIColorName: LaunchBackground
+          UIImageName: LaunchLogo
+          UIImageRespectsSafeAreaInsets: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIUserInterfaceStyle: Automatic
         NSCalendarsFullAccessUsageDescription: Daybook shows and edits the events in your iCloud, Google and Outlook calendars.
