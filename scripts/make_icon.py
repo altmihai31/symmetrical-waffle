@@ -8,7 +8,7 @@ import os
 S = 4  # supersampling
 TOP, BOTTOM = "#39393b", "#141416"
 CARD, OUTLINE, BAR, DIM = "#2c2c2e", "#ebebf0", "#8e8e93", "#48484a"
-BLUE, PURPLE, ORANGE, GREEN = "#5ea2ff", "#bf9bff", "#ff9f0a", "#30d158"
+BLUE, PURPLE, ORANGE, GREEN, RED = "#5ea2ff", "#bf9bff", "#ff9f0a", "#30d158", "#ff453a"
 
 # Day dots, 4 columns x 3 rows. None = an empty day.
 GRID = [
@@ -37,9 +37,8 @@ def draw_calendar(d, ox, oy, k):
     # Binder tabs over the top edge.
     for x in (372, 652):
         rrect(x - 20, 158, x + 20, 268, 20, fill=rgb(OUTLINE))
-    # Month title: a coloured dot and a grey bar, as on Stash's cards.
-    dot(282, 290, 30, fill=rgb(BLUE))
-    rrect(338, 280, 560, 300, 10, fill=rgb(BAR))
+    # Month title: a grey bar, as on Stash's cards.
+    rrect(262, 280, 512, 300, 10, fill=rgb(BAR))
     # Days.
     xs, ys, r = [287 + i * 150 for i in range(4)], [470, 600, 730], 34
     for ri, row in enumerate(GRID):
@@ -48,7 +47,7 @@ def draw_calendar(d, ox, oy, k):
             if c is None:
                 dot(cx, cy, r, fill=rgb(DIM))
             elif c == "today":
-                dot(cx, cy, r, fill=rgb(DIM))
+                dot(cx, cy, r, fill=rgb(RED))
                 dot(cx, cy, r + 16, outline=rgb(OUTLINE), width=12)
             else:
                 dot(cx, cy, r, fill=rgb(c))
