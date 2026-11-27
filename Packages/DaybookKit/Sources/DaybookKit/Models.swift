@@ -192,9 +192,10 @@ public struct DaybookSettings: Hashable, Sendable {
     public func calendar(timeZone: TimeZone = .current) -> Calendar {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timeZone
+        // Set the locale first: assigning a locale resets firstWeekday to the locale's default.
+        cal.locale = Locale(identifier: "en_GB")
         cal.firstWeekday = weekStartsOnMonday ? 2 : 1
         cal.minimumDaysInFirstWeek = 4
-        cal.locale = Locale(identifier: "en_GB")
         return cal
     }
 }
