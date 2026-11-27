@@ -224,9 +224,19 @@ final class DaybookUITests: XCTestCase {
             tap("check-\(t)")
             Thread.sleep(forTimeInterval: 0.6)
         }
-        tap("check-Call the bank")
-        XCTAssertTrue(el("celebration").waitForExistence(timeout: 3))
-        snap("24-celebration")
+        // The burst lasts about two seconds and XCUITest waits for animations to settle after a tap,
+        // so the screenshot may catch its end; the banner below is what stays.
+        let last = el("check-Call the bank")
+        XCTAssertTrue(last.waitForExistence(timeout: 5))
+        last.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let shot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: shot)
+        attachment.name = "24-celebration"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        if let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty {
+            try? shot.pngRepresentation.write(to: URL(fileURLWithPath: dir).appendingPathComponent("24-celebration.png"))
+        }
         XCTAssertTrue(el("allDone").waitForExistence(timeout: 5))
         snap("25-all-done")
     }
