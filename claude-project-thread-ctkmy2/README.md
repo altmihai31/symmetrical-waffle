@@ -1,4 +1,4 @@
-# Daybook screenshots (claude-project-thread-ctkmy2, 177379b)
+# Daybook screenshots (claude-project-thread-ctkmy2, 437d099)
 
 ## 01-month
 
@@ -51,6 +51,10 @@
 ## 13-search
 
 <img src="13-search.png" width="320">
+
+## 14-task-completed
+
+<img src="14-task-completed.png" width="320">
 
 ## 15-month-light
 
