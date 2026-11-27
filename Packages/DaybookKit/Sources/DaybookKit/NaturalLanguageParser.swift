@@ -24,6 +24,8 @@ public struct ParsedInput: Equatable, Sendable {
     public var location: String?
     public var tokens: [Token] = []
 
+    public init() {}
+
     public var recognisedAnything: Bool { !tokens.isEmpty }
 }
 
