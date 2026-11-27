@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Draws the Daybook app icon and launch logo in the same language as Stash's icon:
-dark gradient, a dark card with a thick light outline, coloured dots and grey text bars.
+dark gradient, a dark card with a thick light outline, coloured dots and a grey title bar,
+centred with equal spacing throughout.
 Run from the repo root: python3 scripts/make_icon.py"""
 from PIL import Image, ImageDraw
 import os
@@ -20,8 +21,23 @@ GRID = [
 def rgb(h):
     h = h.lstrip("#"); return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
+# Layout in a 1024-unit square. The card fills 192..832 on both axes, so the gap to the
+# icon's edge is the same on all four sides. Every gap inside is equal too:
+# - dots: the space between dots, and between the outer dots and the card's inner edge,
+#   is the same across and down;
+# - header: the grey bar sits with equal space above it and below it.
+L, T, R, B = 192, 192, 832, 832
+LINE = 34                      # outline weight
+DOT = 36                       # dot radius
+IN_L, IN_R, IN_B = L + LINE, R - LINE, B - LINE      # the outline is drawn inwards
+GAP = (IN_R - IN_L - 8 * DOT) / 5                    # 4 dots, 5 equal gaps across
+BODY_H = 4 * GAP + 6 * DOT                           # 3 rows, 4 equal gaps down
+DIVIDER_B = IN_B - BODY_H                            # bottom edge of the header line
+DIVIDER_T = DIVIDER_B - LINE
+BAR_H, BAR_W = 28, 280
+
 def draw_calendar(d, ox, oy, k):
-    """Draws the card in a 1024-unit design space, scaled by k and offset by (ox, oy)."""
+    """Draws the card in the 1024-unit design space, scaled by k and offset by (ox, oy)."""
     P = lambda x, y: (ox + x * k, oy + y * k)
     def rrect(x0, y0, x1, y1, r, **kw):
         if "width" in kw: kw["width"] = round(kw["width"] * k)
@@ -30,27 +46,21 @@ def draw_calendar(d, ox, oy, k):
         if "width" in kw: kw["width"] = round(kw["width"] * k)
         d.ellipse([*P(cx - r, cy - r), *P(cx + r, cy + r)], **kw)
 
-    # Card with the same 20-unit light outline as Stash's cards.
-    rrect(192, 212, 832, 852, 110, fill=rgb(CARD), outline=rgb(OUTLINE), width=20)
-    # Header: a divider line, like a calendar page's top.
-    rrect(202, 352, 822, 372, 0, fill=rgb(OUTLINE))
-    # Binder tabs over the top edge.
-    for x in (372, 652):
-        rrect(x - 20, 158, x + 20, 268, 20, fill=rgb(OUTLINE))
-    # Month title: a grey bar, as on Stash's cards.
-    rrect(262, 280, 512, 300, 10, fill=rgb(BAR))
-    # Days.
-    xs, ys, r = [287 + i * 150 for i in range(4)], [470, 600, 730], 34
+    rrect(L, T, R, B, 116, fill=rgb(CARD), outline=rgb(OUTLINE), width=LINE)
+    rrect(L, DIVIDER_T, R, DIVIDER_B, 0, fill=rgb(OUTLINE))
+    bar_mid = (T + LINE + DIVIDER_T) / 2
+    rrect(512 - BAR_W / 2, bar_mid - BAR_H / 2, 512 + BAR_W / 2, bar_mid + BAR_H / 2, BAR_H / 2, fill=rgb(BAR))
     for ri, row in enumerate(GRID):
         for ci, c in enumerate(row):
-            cx, cy = xs[ci], ys[ri]
+            cx = IN_L + GAP + DOT + ci * (2 * DOT + GAP)
+            cy = DIVIDER_B + GAP + DOT + ri * (2 * DOT + GAP)
             if c is None:
-                dot(cx, cy, r, fill=rgb(DIM))
+                dot(cx, cy, DOT, fill=rgb(DIM))
             elif c == "today":
-                dot(cx, cy, r, fill=rgb(RED))
-                dot(cx, cy, r + 16, outline=rgb(OUTLINE), width=12)
+                dot(cx, cy, DOT, fill=rgb(RED))
+                dot(cx, cy, DOT + 18, outline=rgb(OUTLINE), width=14)
             else:
-                dot(cx, cy, r, fill=rgb(c))
+                dot(cx, cy, DOT, fill=rgb(c))
 
 def icon(path, size=1024):
     W = size * S
@@ -68,10 +78,13 @@ def logo(path, size=600):
     W = size * S
     img = Image.new("RGBA", (W, W), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    k = W / 760
-    draw_calendar(d, -132 * k, -126 * k, k)
+    k = W / (R - L + 120)
+    draw_calendar(d, -(L - 60) * k, -(T - 60) * k, k)
     img.resize((size, size), Image.LANCZOS).save(path)
 
+import sys
+if len(sys.argv) > 1:  # preview only: python3 scripts/make_icon.py out.png
+    icon(sys.argv[1]); sys.exit()
 base = "Daybook/Resources/Assets.xcassets"
 icon(f"{base}/AppIcon.appiconset/AppIcon.png")
 os.makedirs(f"{base}/LaunchLogo.imageset", exist_ok=True)
