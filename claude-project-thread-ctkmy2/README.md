@@ -1,4 +1,4 @@
-# Daybook screenshots (claude-project-thread-ctkmy2, e105d95)
+# Daybook screenshots (claude-project-thread-ctkmy2, 3c5eb2c)
 
 ## 01-month
 
@@ -43,22 +43,6 @@
 ## 10-month-after-save
 
 <img src="10-month-after-save.png" width="320">
-
-## 11-drawer
-
-<img src="11-drawer.png" width="320">
-
-## 12-settings
-
-<img src="12-settings.png" width="320">
-
-## 13-search
-
-<img src="13-search.png" width="320">
-
-## 14-task-completed
-
-<img src="14-task-completed.png" width="320">
 
 ## 15-month-light
 
