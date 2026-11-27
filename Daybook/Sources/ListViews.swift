@@ -11,7 +11,8 @@ struct AgendaRow: View {
         switch item {
         case .timed(let e), .allDay(let e):
             let c = ChipColors(hex: model.colorHex(for: e), scheme: scheme)
-            Button { model.sheet = .event(e) } label: {
+            // A tap gesture rather than a Button: a Button also fires at the end of a sideways swipe.
+            Group {
                 HStack(alignment: .top, spacing: 10) {
                     VStack(alignment: .trailing, spacing: 1) {
                         if e.isAllDay {
@@ -38,7 +39,9 @@ struct AgendaRow: View {
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .onTapGesture { model.sheet = .event(e) }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
             .rowSwipe(trailing: model.info(for: e.calendarID)?.allowsModifications == false ? nil :
                         SwipeAction(title: "Delete", icon: "trash", color: Theme.danger, removes: true) {
                             model.deleteEvent(e)
@@ -67,7 +70,7 @@ struct TaskRow: View {
             }
             CheckBox(done: task.isCompleted, color: color, size: 20, round: true) { model.toggle(task) }
                 .accessibilityIdentifier("check-\(task.title)")
-            Button { model.sheet = .task(task, defaultDue: nil) } label: {
+            Group {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(task.title)
                         .font(.system(size: 15, weight: .medium))
@@ -89,7 +92,9 @@ struct TaskRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .onTapGesture { model.sheet = .task(task, defaultDue: nil) }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
         }
         .padding(.vertical, 7)
         .opacity(task.isCompleted ? 0.6 : 1)
