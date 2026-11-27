@@ -181,11 +181,11 @@ struct TimelineGrid: View {
                 if let drag {
                     if !d.located {
                         // Start where the finger actually is, not at the top of its hour.
-                        d.anchor = TimelineDraft.floorSnap(drag.startLocation.y / hourHeight * 60)
+                        d.anchor = TimelineDraft.floorSnap(Double(drag.startLocation.y / hourHeight) * 60)
                         d.located = true
                     }
                     let moved = abs(drag.translation.height) > hourHeight / 8
-                    let r = TimelineDraft.range(anchor: d.anchor, current: drag.location.y / hourHeight * 60,
+                    let r = TimelineDraft.range(anchor: d.anchor, current: Double(drag.location.y / hourHeight) * 60,
                                                 defaultLength: model.settings.defaultEventMinutes, moved: moved)
                     d.start = r.start
                     d.end = r.end

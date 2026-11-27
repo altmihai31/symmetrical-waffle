@@ -90,7 +90,9 @@ struct Sparkle {
         guard local > 0, local < 1 else { return }
         let eased = 1 - pow(1 - local, 3)                 // fast out, slow at the end
         let r = distance * eased
-        let p = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r + 30 * local * local)
+        let dx: Double = cos(angle) * r
+        let dy: Double = sin(angle) * r + 30 * local * local
+        let p = CGPoint(x: Double(center.x) + dx, y: Double(center.y) + dy)
         let s = size * (1 - 0.6 * local)
         var ctx = gc
         ctx.opacity = 1 - local * local
@@ -103,7 +105,7 @@ struct Sparkle {
     static func star(size: Double) -> Path {
         var path = Path()
         let a = size, b = size * 0.28
-        path.move(to: CGPoint(x: 0, y: -a))
+        path.move(to: CGPoint(x: 0.0, y: -a))
         path.addQuadCurve(to: CGPoint(x: a, y: 0), control: CGPoint(x: b, y: -b))
         path.addQuadCurve(to: CGPoint(x: 0, y: a), control: CGPoint(x: b, y: b))
         path.addQuadCurve(to: CGPoint(x: -a, y: 0), control: CGPoint(x: -b, y: b))
