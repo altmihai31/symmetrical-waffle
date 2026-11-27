@@ -1,0 +1,127 @@
+import XCTest
+
+/// Drives the app with demo data and saves a screenshot of every screen.
+/// Screenshots go to $SCREENSHOT_DIR (passed by CI as TEST_RUNNER_SCREENSHOT_DIR) and into the test results.
+final class DaybookUITests: XCTestCase {
+    var app: XCUIApplication!
+
+    override func setUp() {
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launchArguments += ["-DaybookDemo", "YES", "-DaybookResetDefaults", "YES",
+                                "-AppleLanguages", "(en)", "-AppleLocale", "en_GB"]
+    }
+
+    private func el(_ id: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+
+    private func tap(_ id: String, timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line) {
+        let e = el(id)
+        XCTAssertTrue(e.waitForExistence(timeout: timeout), "Missing \(id)", file: file, line: line)
+        e.tap()
+    }
+
+    private func snap(_ name: String) {
+        // Let animations settle.
+        Thread.sleep(forTimeInterval: 0.8)
+        let shot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: shot)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        if let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty {
+            let url = URL(fileURLWithPath: dir).appendingPathComponent("\(name).png")
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? shot.pngRepresentation.write(to: url)
+        }
+    }
+
+    func testTourOfScreens() {
+        app.launch()
+        XCTAssertTrue(el("monthView").waitForExistence(timeout: 15))
+        snap("01-month")
+
+        tap("tab-Week"); XCTAssertTrue(el("weekView").waitForExistence(timeout: 5)); snap("02-week")
+        tap("tab-Day"); XCTAssertTrue(el("dayView").waitForExistence(timeout: 5)); snap("03-day")
+        tap("tab-List"); XCTAssertTrue(el("listView").waitForExistence(timeout: 5)); snap("04-list")
+        tap("tab-Tasks"); XCTAssertTrue(el("tasksView").waitForExistence(timeout: 5)); snap("05-tasks")
+
+        // Event detail, then the editor in the same sheet.
+        tap("tab-List")
+        tap("row-Product sync")
+        XCTAssertTrue(el("detailTitle").waitForExistence(timeout: 5))
+        snap("06-event-detail")
+        tap("pill-Edit")
+        XCTAssertTrue(el("titleField").waitForExistence(timeout: 5))
+        snap("07-edit-event")
+        tap("tab-startTime")
+        XCTAssertTrue(el("wheel").waitForExistence(timeout: 5))
+        snap("08-edit-event-wheels")
+        tap("closeButton")
+
+        // New event typed in natural language.
+        tap("tab-Month")
+        tap("addButton")
+        let title = el("titleField")
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        title.typeText("Coffee with Radu tomorrow 1pm at Origo #family")
+        XCTAssertTrue(el("parsePreview").waitForExistence(timeout: 5))
+        snap("09-new-event-parsed")
+        tap("pill-Save")
+        XCTAssertTrue(el("toast").waitForExistence(timeout: 5))
+        snap("10-month-after-save")
+
+        // The new event shows up in the list with the parsed title and place.
+        tap("tab-List")
+        let row = el("row-Coffee with Radu")
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.label.contains("Origo"), "Location should be parsed: \(row.label)")
+
+        // Drawer and settings.
+        tap("menuButton")
+        XCTAssertTrue(el("drawer").waitForExistence(timeout: 5))
+        snap("11-drawer")
+        tap("drawer-Calendars & settings")
+        XCTAssertTrue(el("settingsView").waitForExistence(timeout: 5))
+        snap("12-settings")
+        tap("closeButton")
+
+        // Search.
+        tap("searchButton")
+        let field = el("searchField")
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("yoga")
+        XCTAssertTrue(el("searchResults").waitForExistence(timeout: 5))
+        snap("13-search")
+        tap("searchButton")
+
+        // Complete a task.
+        tap("tab-Tasks")
+        tap("check-Water plants")
+        XCTAssertTrue(el("toast").waitForExistence(timeout: 5))
+        snap("14-task-completed")
+    }
+
+    func testLightMode() {
+        app.launchArguments += ["-daybook.appearance", "Light"]
+        app.launch()
+        XCTAssertTrue(el("monthView").waitForExistence(timeout: 15))
+        snap("15-month-light")
+        tap("tab-Day")
+        snap("16-day-light")
+    }
+
+    func testHidingCalendarRemovesItsEvents() {
+        app.launch()
+        tap("tab-List")
+        XCTAssertTrue(el("row-Product sync").waitForExistence(timeout: 5))
+        tap("menuButton")
+        let toggle = el("toggle-Work")
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.switches.firstMatch.exists ? toggle.switches.firstMatch.tap() : toggle.tap()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        XCTAssertFalse(el("row-Product sync").waitForExistence(timeout: 2))
+    }
+}
