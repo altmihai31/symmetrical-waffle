@@ -1,4 +1,4 @@
-# Daybook screenshots (claude-project-thread-ctkmy2, e857dd4)
+# Daybook screenshots (claude-project-thread-ctkmy2, b0b90e4)
 
 ## 01-month
 
@@ -67,3 +67,7 @@
 ## 16-day-light
 
 <img src="16-day-light.png" width="320">
+
+## 17-task-swiped
+
+<img src="17-task-swiped.png" width="320">
