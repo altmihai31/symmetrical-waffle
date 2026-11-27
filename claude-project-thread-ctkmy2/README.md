@@ -1,4 +1,4 @@
-# Daybook screenshots (claude-project-thread-ctkmy2, b0b90e4)
+# Daybook screenshots (claude-project-thread-ctkmy2, e105d95)
 
 ## 01-month
 
@@ -71,3 +71,15 @@
 ## 17-task-swiped
 
 <img src="17-task-swiped.png" width="320">
+
+## 18-event-swiped
+
+<img src="18-event-swiped.png" width="320">
+
+## 19-week-after-drag
+
+<img src="19-week-after-drag.png" width="320">
+
+## 20-day-after-zoom
+
+<img src="20-day-after-zoom.png" width="320">
