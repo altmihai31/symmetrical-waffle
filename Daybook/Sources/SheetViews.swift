@@ -187,10 +187,6 @@ struct EventSheet: View {
             Rectangle().fill(Theme.line).frame(height: 1)
             HStack {
                 if editable {
-                    Button("Edit") { editing = true; detent = .large }
-                        .font(.system(size: 20))
-                        .foregroundStyle(Theme.ink)
-                        .accessibilityIdentifier("pill-Edit")
                     Spacer()
                     Button { confirmDelete = true } label: {
                         Image(systemName: "trash").font(.system(size: 22, weight: .medium)).foregroundStyle(Theme.danger)
@@ -235,7 +231,7 @@ struct EventSheet: View {
             if editable {
                 Button { editing = true; detent = .large } label: { actionLabel("pencil", "Edit", prominent: false) }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("action-edit")
+                    .accessibilityIdentifier("pill-Edit")
             }
             Spacer(minLength: 0)
         }

@@ -186,15 +186,18 @@ final class DaybookUITests: XCTestCase {
         XCTAssertTrue(today.waitForExistence(timeout: 5))
         today.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).press(forDuration: 1.3)
         snap("21-month-peek")
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).tap()
+        let open = app.buttons["Open day"]
+        XCTAssertTrue(open.waitForExistence(timeout: 5))
+        open.tap()
+        XCTAssertTrue(el("dayView").waitForExistence(timeout: 5))
 
         // Tapping an event opens the compact card first.
         tap("tab-List")
         tap("row-Product sync")
         XCTAssertTrue(el("detailTitle").waitForExistence(timeout: 5))
-        XCTAssertTrue(el("action-edit").waitForExistence(timeout: 5))
+        XCTAssertTrue(el("pill-Edit").waitForExistence(timeout: 5))
         snap("22-event-card")
-        tap("action-edit")
+        tap("pill-Edit")
         XCTAssertTrue(el("titleField").waitForExistence(timeout: 5))
         tap("closeButton")
 
