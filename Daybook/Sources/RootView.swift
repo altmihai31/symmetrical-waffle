@@ -45,13 +45,13 @@ struct RootView: View {
             } label: {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 20, weight: .semibold))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 36, height: 40)
             }
             .accessibilityIdentifier("menuButton")
             .accessibilityLabel("Menu")
 
             Spacer(minLength: 0)
-            HStack(spacing: 2) {
+            HStack(spacing: 0) {
                 ForEach(ViewMode.allCases) { m in
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
@@ -61,7 +61,9 @@ struct RootView: View {
                     } label: {
                         Text(m.rawValue)
                             .font(.system(size: 15, weight: .semibold))
-                            .padding(.horizontal, 10)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .padding(.horizontal, 9)
                             .padding(.vertical, 7)
                             .background {
                                 if model.mode == m {
@@ -79,13 +81,13 @@ struct RootView: View {
             Button { model.openNew() } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 21, weight: .semibold))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 36, height: 40)
             }
             .accessibilityIdentifier("addButton")
             .accessibilityLabel(model.mode == .tasks ? "New task" : "New event")
         }
         .foregroundStyle(.white)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 6)
         .padding(.top, 4)
         .padding(.bottom, 10)
     }

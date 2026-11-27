@@ -531,6 +531,7 @@ struct EventEditor: View {
                 }
             }
             .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

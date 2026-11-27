@@ -73,6 +73,7 @@ struct EntryChip: View {
         .background(c.fill.opacity(0.7))
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .opacity(t.isCompleted ? 0.55 : 1)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chip-\(t.title)")
     }
 }

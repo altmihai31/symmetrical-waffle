@@ -89,6 +89,7 @@ struct TaskRow: View {
         }
         .padding(.vertical, 7)
         .opacity(task.isCompleted ? 0.6 : 1)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-\(task.title)")
     }
 
@@ -217,8 +218,8 @@ struct SearchResultsView: View {
                 if sections.isEmpty { EmptyState(text: "No matches for “\(model.searchText)”") }
                 ForEach(sections) { section in
                     SectionHeader(title: section.title,
-                                  subtitle: section.day == .distantFuture ? nil
-                                    : DateText.longDay(section.day, calendar: model.calendar, now: Date()))
+                                  subtitle: ["Today", "Tomorrow", "Yesterday"].contains(section.title)
+                                    ? DateText.longDay(section.day, calendar: model.calendar, now: Date()) : nil)
                     ForEach(section.items) { item in AgendaRow(item: item).padding(.horizontal, 14) }
                 }
             }

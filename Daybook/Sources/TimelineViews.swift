@@ -80,10 +80,13 @@ struct TimelineGrid: View {
                                 .accessibilityIdentifier("nowLine")
                             }
                         }
-                        // Scroll anchors
-                        ForEach(0..<24, id: \.self) { h in
-                            Color.clear.frame(width: 1, height: 1).offset(y: CGFloat(h) * hourHeight).id("h\(h)")
+                        // Scroll anchors (laid out, not offset, so scrollTo can find them)
+                        VStack(spacing: 0) {
+                            ForEach(0..<24, id: \.self) { h in
+                                Color.clear.frame(width: 1, height: hourHeight).id("h\(h)")
+                            }
                         }
+                        .allowsHitTesting(false)
                     }
                 }
                 .frame(height: hourHeight * 24 + 8)
@@ -174,7 +177,6 @@ struct AllDayRow: View {
                             if items.count > limit {
                                 Text("+\(items.count - limit)").font(.system(size: 9.5, weight: .semibold)).foregroundStyle(Theme.ink3)
                             }
-                            Spacer(minLength: 0)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -182,7 +184,7 @@ struct AllDayRow: View {
             }
             .padding(.vertical, 5)
             .padding(.trailing, 4)
-            .frame(maxHeight: days.count > 1 ? 70 : 170)
+            .fixedSize(horizontal: false, vertical: true)
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
         }
     }
@@ -197,7 +199,7 @@ struct WeekView: View {
         let symbols = DateMath.weekdaySymbols(calendar: cal)
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                Color.clear.frame(width: gutter)
+                Color.clear.frame(width: gutter, height: 1)
                 ForEach(Array(days.enumerated()), id: \.offset) { i, day in
                     let today = cal.isDateInToday(day)
                     let selected = cal.isDate(day, inSameDayAs: model.selectedDate)
