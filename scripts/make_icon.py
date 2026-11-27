@@ -28,7 +28,7 @@ def rgb(h):
 # - header: the grey bar sits with equal space above it and below it.
 L, T, R, B = 192, 192, 832, 832
 LINE = 34                      # outline weight
-DOT = 36                       # dot radius
+DOT = 42                       # dot radius
 IN_L, IN_R, IN_B = L + LINE, R - LINE, B - LINE      # the outline is drawn inwards
 GAP = (IN_R - IN_L - 8 * DOT) / 5                    # 4 dots, 5 equal gaps across
 BODY_H = 4 * GAP + 6 * DOT                           # 3 rows, 4 equal gaps down
@@ -57,8 +57,9 @@ def draw_calendar(d, ox, oy, k):
             if c is None:
                 dot(cx, cy, DOT, fill=rgb(DIM))
             elif c == "today":
+                # A solid light ring hugging the red dot, with no dark gap between them.
+                dot(cx, cy, DOT + 14, fill=rgb(OUTLINE))
                 dot(cx, cy, DOT, fill=rgb(RED))
-                dot(cx, cy, DOT + 18, outline=rgb(OUTLINE), width=14)
             else:
                 dot(cx, cy, DOT, fill=rgb(c))
 
