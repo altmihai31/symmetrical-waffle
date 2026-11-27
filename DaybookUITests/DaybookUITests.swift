@@ -67,7 +67,12 @@ final class DaybookUITests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         snap("09a-new-event-empty")
         title.tap()
-        title.typeText("Coffee with Radu tomorrow 1pm at Origo #family")
+        // Type word by word, like a person: the field re-lays out as the parser
+        // highlights words and wraps to a second line, and a single fast burst can drop keys.
+        for word in ["Coffee ", "with ", "Radu ", "tomorrow ", "1pm ", "at ", "Origo ", "#family"] {
+            title.typeText(word)
+        }
+        XCTAssertEqual(title.value as? String, "Coffee with Radu tomorrow 1pm at Origo #family")
         XCTAssertTrue(el("when-start").waitForExistence(timeout: 5))
         snap("09-new-event-parsed")
         tap("pill-Save")
