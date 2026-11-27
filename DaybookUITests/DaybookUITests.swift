@@ -105,6 +105,13 @@ final class DaybookUITests: XCTestCase {
         snap("14-task-completed")
     }
 
+    /// A finger drag across a row, slower than XCUITest's swipe flick.
+    private func drag(_ e: XCUIElement, from x0: CGFloat, to x1: CGFloat) {
+        let start = e.coordinate(withNormalizedOffset: CGVector(dx: x0, dy: 0.5))
+        let end = e.coordinate(withNormalizedOffset: CGVector(dx: x1, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: 600, thenHoldForDuration: 0.1)
+    }
+
     private func text(beginningWith prefix: String) -> XCUIElement {
         app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
     }
@@ -117,21 +124,23 @@ final class DaybookUITests: XCTestCase {
         tap("tab-Tasks")
         let rent = el("task-Pay rent")
         XCTAssertTrue(rent.waitForExistence(timeout: 5))
-        rent.swipeRight()
+        drag(rent, from: 0.3, to: 0.9)
         XCTAssertTrue(text(beginningWith: "Task completed").waitForExistence(timeout: 5))
         let groceries = el("task-Groceries")
         XCTAssertTrue(groceries.waitForExistence(timeout: 5))
-        groceries.swipeLeft()
-        XCTAssertTrue(text(beginningWith: "Postponed to").waitForExistence(timeout: 5))
+        drag(groceries, from: 0.8, to: 0.15)
+        let postponed = text(beginningWith: "Postponed to").waitForExistence(timeout: 5)
         snap("17-task-swiped")
+        XCTAssertTrue(postponed)
 
         // Swipe an event left to delete it.
         tap("tab-List")
         let run = el("row-Morning run")
         XCTAssertTrue(run.waitForExistence(timeout: 5))
-        run.swipeLeft()
-        XCTAssertTrue(text(beginningWith: "Event deleted").waitForExistence(timeout: 5))
+        drag(run, from: 0.8, to: 0.15)
+        let deleted = text(beginningWith: "Event deleted").waitForExistence(timeout: 5)
         snap("18-event-swiped")
+        XCTAssertTrue(deleted)
 
         // Long-press a week tile and drop it on the first day.
         tap("tab-Week")
@@ -141,9 +150,10 @@ final class DaybookUITests: XCTestCase {
         let tile = el("tile-Book club")
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
         XCTAssertTrue(target.waitForExistence(timeout: 5))
-        tile.press(forDuration: 1.0, thenDragTo: target)
-        XCTAssertTrue(text(beginningWith: "Moved to").waitForExistence(timeout: 5))
+        tile.press(forDuration: 1.0, thenDragTo: target, withVelocity: 300, thenHoldForDuration: 0.5)
+        let moved = text(beginningWith: "Moved to").waitForExistence(timeout: 5)
         snap("19-week-after-drag")
+        XCTAssertTrue(moved)
 
         // Tap the selected month cell to zoom into its Day view.
         tap("tab-Month")
