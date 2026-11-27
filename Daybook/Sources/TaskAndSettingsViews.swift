@@ -236,6 +236,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
         }
         .background(Theme.groupedBG.ignoresSafeArea())
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settingsView")
     }
 }

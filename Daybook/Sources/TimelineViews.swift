@@ -222,6 +222,7 @@ struct WeekView: View {
         }
         .contentShape(Rectangle())
         .simultaneousGesture(swipe)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("weekView")
     }
 
@@ -282,6 +283,7 @@ struct DayView: View {
                 }
             }
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("dayView")
     }
 }

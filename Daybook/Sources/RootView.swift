@@ -287,6 +287,7 @@ struct MonthStrip: View {
         .padding(.bottom, 26)
         .background(Theme.bg)
         .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 0.5) }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("monthStrip")
     }
 }

@@ -2,6 +2,7 @@ name: iOS build
 
 on:
   push:
+    branches-ignore: [ci-screenshots]
   workflow_dispatch:
 
 concurrency:
@@ -81,6 +82,24 @@ jobs:
           name: screenshots
           path: screenshots/*.png
           if-no-files-found: warn
+
+      - name: Publish screenshots to the ci-screenshots branch
+        if: always()
+        continue-on-error: true
+        run: |
+          ls screenshots/*.png >/dev/null 2>&1 || exit 0
+          DEST="${GITHUB_REF_NAME//\//-}"
+          git fetch origin ci-screenshots:ci-screenshots 2>/dev/null || true
+          rm -rf /tmp/shots && git worktree add /tmp/shots ci-screenshots 2>/dev/null || { git worktree add --detach /tmp/shots && (cd /tmp/shots && git checkout --orphan ci-screenshots && git rm -rfq . || true); }
+          cd /tmp/shots
+          rm -rf "$DEST" && mkdir -p "$DEST" && cp "$GITHUB_WORKSPACE"/screenshots/*.png "$DEST"/
+          {
+            echo "# Daybook screenshots ($DEST, ${GITHUB_SHA::7})"
+            for f in "$DEST"/*.png; do echo; echo "## $(basename "$f" .png)"; echo; echo "<img src=\"$(basename "$f")\" width=\"320\">"; done
+          } > "$DEST/README.md"
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "Screenshots for $DEST at ${GITHUB_SHA::7}" || exit 0
+          git push origin ci-screenshots
 
       - name: Upload test results on failure
         if: failure()

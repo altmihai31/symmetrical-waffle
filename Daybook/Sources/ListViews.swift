@@ -125,6 +125,7 @@ struct AgendaView: View {
             }
             .padding(.bottom, 40)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("listView")
     }
 }
@@ -199,6 +200,7 @@ struct TasksView: View {
             }
             .padding(.bottom, 40)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tasksView")
     }
 }
@@ -222,6 +224,7 @@ struct SearchResultsView: View {
             }
             .padding(.bottom, 40)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("searchResults")
     }
 }
@@ -256,6 +259,7 @@ struct DrawerView: View {
         .frame(width: 300)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.sheet.ignoresSafeArea())
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("drawer")
     }
 

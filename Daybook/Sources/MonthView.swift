@@ -43,6 +43,7 @@ struct MonthView: View {
                     else if abs(dy) > abs(dx), abs(dy) > 60 { model.shift(by: dy < 0 ? 1 : -1) }
                 }
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("monthView")
     }
 
