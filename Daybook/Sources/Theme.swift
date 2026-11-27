@@ -36,23 +36,25 @@ extension Color {
 enum Theme {
     static let accent = Color(uiColor: .dynamic(light: "#2f6bff", dark: "#4d82ff"))
     static let accentSoft = Color(uiColor: .dynamic(light: "#2f6bff", dark: "#4d82ff", lightAlpha: 0.12, darkAlpha: 0.18))
-    static let bg = Color(uiColor: .dynamic(light: "#ffffff", dark: "#0f1013"))
-    static let sheet = Color(uiColor: .dynamic(light: "#ffffff", dark: "#17181c"))
-    static let groupedBG = Color(uiColor: .dynamic(light: "#f2f3f7", dark: "#0f1013"))
-    static let fill = Color(uiColor: .dynamic(light: "#f2f3f7", dark: "#1c1d22"))
-    static let fill2 = Color(uiColor: .dynamic(light: "#e8eaf0", dark: "#26282e"))
+    static let bg = Color(uiColor: .dynamic(light: "#ffffff", dark: "#121316"))
+    /// Header bar, title row and sheet bands (the lighter dark grey in Mihai's screenshots).
+    static let chrome = Color(uiColor: .dynamic(light: "#f6f7f9", dark: "#1d1f23"))
+    static let sheet = Color(uiColor: .dynamic(light: "#ffffff", dark: "#1d1f23"))
+    static let groupedBG = Color(uiColor: .dynamic(light: "#eef0f4", dark: "#121316"))
+    static let fill = Color(uiColor: .dynamic(light: "#eef0f4", dark: "#25282c"))
+    static let fill2 = Color(uiColor: .dynamic(light: "#e3e6ec", dark: "#2c2f34"))
     static let ink = Color(uiColor: .dynamic(light: "#121419", dark: "#f3f4f7"))
     static let ink2 = Color(uiColor: .dynamic(light: "#5c616e", dark: "#a3a7b2"))
     static let ink3 = Color(uiColor: .dynamic(light: "#9aa0ac", dark: "#6b707c"))
     static let line = Color(uiColor: .dynamic(light: "#121419", dark: "#ffffff", lightAlpha: 0.08, darkAlpha: 0.08))
-    static let outsideMonth = Color(uiColor: .dynamic(light: "#f6f7fa", dark: "#16171b"))
+    static let outsideMonth = Color(uiColor: .dynamic(light: "#f6f7fa", dark: "#17181b"))
+    static let tile = Color(uiColor: .dynamic(light: "#f1f2f5", dark: "#1f2125"))
     static let danger = Color(hex: "#ff3b30")
-    static let headerGradient = LinearGradient(colors: [Color(hex: "#121831"), Color(hex: "#33349a")],
-                                               startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let headerInk = Color(uiColor: .dynamic(light: "#121419", dark: "#f3f4f7"))
 
     /// Custom event colours offered in the editor.
     static let swatches: [(name: String, hex: String)] = [
-        ("Grey", "#8e8e93"), ("Green", "#34c759"), ("Purple", "#af52de"), ("Orange", "#ff9500")
+        ("Green", "#2fb82f"), ("Grey", "#9b9ea6"), ("Teal", "#00c98a"), ("Blue", "#3e83f7")
     ]
     static let morePalette: [String] = [
         "#ff3b30", "#ff2d55", "#ffcc00", "#2fb35a", "#30b0c7", "#2f6bff", "#5856d6", "#a259e6", "#a2845e", "#636366"

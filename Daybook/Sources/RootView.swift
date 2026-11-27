@@ -7,7 +7,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            Theme.headerGradient.ignoresSafeArea()
+            Theme.chrome.ignoresSafeArea()
             VStack(spacing: 0) {
                 header
                 card
@@ -61,6 +61,7 @@ struct RootView: View {
                     } label: {
                         Text(m.rawValue)
                             .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(model.mode == m ? Color.white : Theme.headerInk)
                             .lineLimit(1)
                             .fixedSize()
                             .padding(.horizontal, 9)
@@ -86,31 +87,38 @@ struct RootView: View {
             .accessibilityIdentifier("addButton")
             .accessibilityLabel(model.mode == .tasks ? "New task" : "New event")
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Theme.headerInk)
         .padding(.horizontal, 6)
         .padding(.top, 4)
-        .padding(.bottom, 10)
+        .padding(.bottom, 4)
     }
 
     // MARK: Card
 
     private var card: some View {
         VStack(spacing: 0) {
-            TitleRow()
-            if model.searchOpen {
-                SearchField()
+            VStack(spacing: 0) {
+                TitleRow()
+                if model.searchOpen {
+                    SearchField()
+                }
             }
+            .background(Theme.chrome)
+            .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             if model.access == .denied && !model.isDemo {
                 AccessBanner()
             }
-            if [.month, .week, .day].contains(model.mode) && !(model.searchOpen && !model.searchText.isEmpty) {
-                MonthStrip()
+            if !(model.searchOpen && !model.searchText.isEmpty) {
+                if model.mode == .week {
+                    WeekStrip()
+                } else if [.month, .day].contains(model.mode) {
+                    MonthStrip()
+                }
             }
         }
         .background(Theme.bg)
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
         .ignoresSafeArea(edges: .bottom)
     }
 
@@ -187,13 +195,17 @@ struct TitleRow: View {
         }
         .foregroundStyle(Theme.ink)
         .padding(.horizontal, 16)
-        .padding(.top, 14)
-        .padding(.bottom, 6)
+        .padding(.top, 6)
+        .padding(.bottom, 10)
     }
 
     private func title(_ cal: Calendar) -> AttributedString {
         if model.mode == .tasks {
             var t = AttributedString("Tasks"); t.font = .system(size: 26, weight: .bold); return t
+        }
+        if model.mode == .week {
+            var t = AttributedString(DateText.weekRangeTitle(model.selectedDate, calendar: cal))
+            t.font = .system(size: 26, weight: .semibold); return t
         }
         var month = AttributedString(DateText.monthName(model.selectedDate, calendar: cal))
         month.font = .system(size: 26, weight: .bold)
@@ -287,7 +299,7 @@ struct MonthStrip: View {
         }
         .frame(height: 50)
         .padding(.bottom, 26)
-        .background(Theme.bg)
+        .background(Theme.chrome)
         .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 0.5) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("monthStrip")

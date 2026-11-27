@@ -72,6 +72,12 @@ public enum DateMath {
         return (-before...after).compactMap { calendar.date(byAdding: .month, value: $0, to: first) }
     }
 
+    /// `count` consecutive days starting at `start`.
+    public static func days(from start: Date, count: Int, calendar: Calendar) -> [Date] {
+        let first = calendar.startOfDay(for: start)
+        return (0..<count).compactMap { calendar.date(byAdding: .day, value: $0, to: first) }
+    }
+
     /// Moves `date` by one view period (day, week or month).
     public static func shift(_ date: Date, by value: Int, unit: Calendar.Component, calendar: Calendar) -> Date {
         calendar.date(byAdding: unit, value: value, to: date) ?? date
@@ -387,6 +393,39 @@ public enum DateText {
     public static func shortDay(_ day: Date, calendar: Calendar) -> String {
         let wd = String(weekdayNames[calendar.component(.weekday, from: day) - 1].prefix(3))
         return "\(wd) \(calendar.component(.day, from: day)) \(monthName(day, calendar: calendar, short: true))"
+    }
+
+    /// e.g. "Wednesday, 18 November" (year added when not `now`'s year).
+    public static func fullDay(_ day: Date, calendar: Calendar, now: Date? = nil) -> String {
+        let wd = weekdayNames[calendar.component(.weekday, from: day) - 1]
+        var s = "\(wd), \(calendar.component(.day, from: day)) \(monthName(day, calendar: calendar))"
+        if let now, calendar.component(.year, from: now) != calendar.component(.year, from: day) {
+            s += " \(year(day, calendar: calendar))"
+        }
+        return s
+    }
+
+    /// e.g. "Wed, 18 Nov".
+    public static func shortDayComma(_ day: Date, calendar: Calendar) -> String {
+        let wd = String(weekdayNames[calendar.component(.weekday, from: day) - 1].prefix(3))
+        return "\(wd), \(calendar.component(.day, from: day)) \(monthName(day, calendar: calendar, short: true))"
+    }
+
+    /// Title for seven days starting at `start`, e.g. "27 Nov - 3 Dec" or "2 - 8 Nov".
+    public static func weekRangeTitle(_ start: Date, calendar: Calendar) -> String {
+        let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
+        let d1 = calendar.component(.day, from: start), d2 = calendar.component(.day, from: end)
+        let m1 = monthName(start, calendar: calendar, short: true), m2 = monthName(end, calendar: calendar, short: true)
+        if m1 == m2 { return "\(d1) - \(d2) \(m1)" }
+        return "\(d1) \(m1) - \(d2) \(m2)"
+    }
+
+    /// Two-line label for the week strip, e.g. ("Nov-Dec", "27-3").
+    public static func weekStripLabel(_ start: Date, calendar: Calendar) -> (months: String, days: String) {
+        let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
+        let m1 = monthName(start, calendar: calendar, short: true), m2 = monthName(end, calendar: calendar, short: true)
+        let days = "\(calendar.component(.day, from: start))-\(calendar.component(.day, from: end))"
+        return (m1 == m2 ? m1 : "\(m1)-\(m2)", days)
     }
 
     /// "13:05" in 24-hour time, "1:05pm" in 12-hour time.

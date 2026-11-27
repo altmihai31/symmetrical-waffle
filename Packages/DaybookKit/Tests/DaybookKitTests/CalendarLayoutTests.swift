@@ -183,6 +183,20 @@ final class CalendarLayoutTests: XCTestCase {
         XCTAssertEqual(strip.map { DateText.monthName($0, calendar: cal, short: true) }, ["Sep", "Oct", "Nov", "Dec", "Jan"])
     }
 
+    func testWeekRowsText() {
+        let start = T.date(2026, 11, 27)
+        XCTAssertEqual(DateText.weekRangeTitle(start, calendar: cal), "27 Nov - 3 Dec")
+        XCTAssertEqual(DateText.weekRangeTitle(T.date(2026, 11, 2), calendar: cal), "2 - 8 Nov")
+        XCTAssertEqual(DateText.weekStripLabel(start, calendar: cal).months, "Nov-Dec")
+        XCTAssertEqual(DateText.weekStripLabel(start, calendar: cal).days, "27-3")
+        XCTAssertEqual(DateText.weekStripLabel(T.date(2026, 11, 13), calendar: cal).months, "Nov")
+        XCTAssertEqual(DateText.fullDay(T.date(2026, 11, 18), calendar: cal), "Wednesday, 18 November")
+        XCTAssertEqual(DateText.shortDayComma(T.date(2026, 11, 18), calendar: cal), "Wed, 18 Nov")
+        let days = DateMath.days(from: T.date(2026, 11, 27, 15), count: 7, calendar: cal)
+        XCTAssertEqual(days.first, start)
+        XCTAssertEqual(days.last, T.date(2026, 12, 3))
+    }
+
     func testAlertClosest() {
         XCTAssertEqual(AlertOption.closest(toMinutesBefore: nil), .none)
         XCTAssertEqual(AlertOption.closest(toMinutesBefore: 10), .min5)

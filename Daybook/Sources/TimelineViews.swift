@@ -190,50 +190,179 @@ struct AllDayRow: View {
     }
 }
 
+/// Seven days from the selected date as rows, each with its entries as tiles side by side.
 struct WeekView: View {
     @EnvironmentObject var model: AppModel
+    private let labelWidth: CGFloat = 54
+    private let tileWidth: CGFloat = 66
 
     var body: some View {
         let cal = model.calendar
-        let days = DateMath.week(containing: model.selectedDate, calendar: cal)
-        let symbols = DateMath.weekdaySymbols(calendar: cal)
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                Color.clear.frame(width: gutter, height: 1)
-                ForEach(Array(days.enumerated()), id: \.offset) { i, day in
-                    let today = cal.isDateInToday(day)
-                    let selected = cal.isDate(day, inSameDayAs: model.selectedDate)
-                    Button { withAnimation { model.select(day) } } label: {
-                        VStack(spacing: 2) {
-                            Text(symbols[i]).font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(today ? Theme.accent : Theme.ink2)
-                            Text("\(cal.component(.day, from: day))")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(today || selected ? .white : Theme.ink)
-                                .frame(width: 28, height: 28)
-                                .background(Circle().fill(today ? Theme.accent : (selected ? Theme.ink3 : .clear)))
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.plain)
+        let days = DateMath.days(from: model.selectedDate, count: 7, calendar: cal)
+        let events = model.visibleEvents
+        let tasks = model.calendarTasks
+        GeometryReader { geo in
+            let rowH = geo.size.height / 7
+            VStack(spacing: 0) {
+                ForEach(days, id: \.self) { day in
+                    let items = DayContent.items(on: day, events: events, tasks: tasks, includeTasks: true,
+                                                 includeMultiDay: true, calendar: cal)
+                    row(day: day, items: items, height: rowH, cal: cal)
                 }
             }
-            .padding(.bottom, 4)
-            AllDayRow(days: days, events: model.visibleEvents, tasks: model.calendarTasks)
-            TimelineGrid(days: days, events: model.visibleEvents)
         }
         .contentShape(Rectangle())
-        .simultaneousGesture(swipe)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 30).onEnded { v in
+                if abs(v.translation.height) > abs(v.translation.width) * 1.5, abs(v.translation.height) > 80 {
+                    model.shift(by: v.translation.height < 0 ? 1 : -1)
+                }
+            }
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("weekView")
     }
 
-    private var swipe: some Gesture {
-        DragGesture(minimumDistance: 30).onEnded { v in
-            if abs(v.translation.width) > abs(v.translation.height) * 1.5, abs(v.translation.width) > 60 {
-                model.shift(by: v.translation.width < 0 ? 1 : -1)
+    private func row(day: Date, items: [DayItem], height: CGFloat, cal: Calendar) -> some View {
+        let today = cal.isDateInToday(day)
+        let symbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let weekday = symbols[cal.component(.weekday, from: day) - 1]
+        let weekend = [1, 7].contains(cal.component(.weekday, from: day))
+        return HStack(spacing: 0) {
+            Button {
+                withAnimation { model.select(day); model.mode = .day }
+            } label: {
+                VStack(spacing: 0) {
+                    Text(weekday).font(.system(size: 14))
+                    Text("\(cal.component(.day, from: day))").font(.system(size: 19, weight: .medium))
+                }
+                .foregroundStyle(today ? Theme.accent : (weekend ? Theme.ink2 : Theme.ink))
+                .frame(width: labelWidth, height: height)
+                .overlay(alignment: .leading) {
+                    if today { Rectangle().fill(Theme.accent).frame(width: 4) }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 1) {
+                    ForEach(items) { item in
+                        WeekTile(item: item).frame(width: tileWidth, height: height - 1)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                let cal = model.calendar
+                model.openNew(at: DateMath.nextRoundHour(on: day, now: Date(), calendar: cal))
             }
         }
+        .frame(height: height)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
+    }
+}
+
+struct WeekTile: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.colorScheme) private var scheme
+    let item: DayItem
+
+    var body: some View {
+        switch item {
+        case .allDay(let e), .timed(let e):
+            let c = ChipColors(hex: model.colorHex(for: e), scheme: scheme)
+            Button { model.sheet = .event(e) } label: {
+                tile(color: c, fill: c.fill.opacity(scheme == .dark ? 0.75 : 1)) {
+                    Text(e.title).font(.system(size: 13)).foregroundStyle(c.text).lineLimit(3)
+                    Spacer(minLength: 0)
+                    Group {
+                        if e.isAllDay {
+                            Text("all-day")
+                        } else {
+                            Text(model.time(e.start))
+                            Text(DateText.duration(minutes: Int(e.end.timeIntervalSince(e.start) / 60)))
+                        }
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(c.text.opacity(0.85))
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("tile-\(e.title)")
+        case .task(let t):
+            let c = ChipColors(hex: model.colorHex(for: t), scheme: scheme)
+            tile(color: c, fill: Theme.tile) {
+                CheckBox(done: t.isCompleted, color: c.base, size: 18) { model.toggle(t) }
+                    .padding(.bottom, 4)
+                    .accessibilityIdentifier("check-\(t.title)")
+                Button { model.sheet = .task(t, defaultDue: nil) } label: {
+                    Text(t.title).font(.system(size: 13)).foregroundStyle(c.text)
+                        .strikethrough(t.isCompleted)
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+                .buttonStyle(.plain)
+            }
+            .opacity(t.isCompleted ? 0.55 : 1)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("tile-\(t.title)")
+        }
+    }
+
+    private func tile<C: View>(color: ChipColors, fill: Color, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle().fill(color.base).frame(height: 4)
+            VStack(alignment: .leading, spacing: 1) { content() }
+                .padding(.horizontal, 6)
+                .padding(.top, 5)
+                .padding(.bottom, 5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .background(fill)
+    }
+}
+
+/// Strip of seven-day blocks at the bottom of the week view, e.g. "Nov-Dec / 27-3".
+struct WeekStrip: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        let cal = model.calendar
+        let starts = (-10...10).compactMap { cal.date(byAdding: .day, value: $0 * 7, to: model.selectedDate) }
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(starts, id: \.self) { start in
+                        let label = DateText.weekStripLabel(start, calendar: cal)
+                        let shown = cal.isDate(start, inSameDayAs: model.selectedDate)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) { model.select(start) }
+                        } label: {
+                            VStack(spacing: 0) {
+                                Text(label.months).font(.system(size: 13))
+                                Text(label.days).font(.system(size: 19, weight: .medium))
+                            }
+                            .foregroundStyle(shown ? .white : Theme.ink2)
+                            .frame(width: 70, height: 46)
+                            .background(Capsule().fill(shown ? Theme.accent : .clear))
+                        }
+                        .buttonStyle(.plain)
+                        .id(start)
+                    }
+                }
+                .padding(.horizontal, 6)
+            }
+            .onAppear { proxy.scrollTo(starts[10], anchor: .center) }
+            .onChange(of: model.selectedDate) { _, new in
+                withAnimation { proxy.scrollTo(new, anchor: .center) }
+            }
+        }
+        .frame(height: 56)
+        .padding(.bottom, 24)
+        .background(Theme.chrome)
+        .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 0.5) }
+        .accessibilityIdentifier("weekStrip")
     }
 }
 
