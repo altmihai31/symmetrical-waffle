@@ -194,7 +194,7 @@ struct AllDayRow: View {
 struct WeekView: View {
     @EnvironmentObject var model: AppModel
     private let labelWidth: CGFloat = 54
-    private let tileWidth: CGFloat = 66
+    private let tileWidth: CGFloat = 72
 
     var body: some View {
         let cal = model.calendar
@@ -274,7 +274,7 @@ struct WeekTile: View {
             let c = ChipColors(hex: model.colorHex(for: e), scheme: scheme)
             Button { model.sheet = .event(e) } label: {
                 tile(color: c, fill: c.fill.opacity(scheme == .dark ? 0.75 : 1)) {
-                    Text(e.title).font(.system(size: 13)).foregroundStyle(c.text).lineLimit(3)
+                    Text(e.title).font(.system(size: 12.5)).foregroundStyle(c.text).lineLimit(3)
                     Spacer(minLength: 0)
                     Group {
                         if e.isAllDay {
@@ -297,7 +297,7 @@ struct WeekTile: View {
                     .padding(.bottom, 4)
                     .accessibilityIdentifier("check-\(t.title)")
                 Button { model.sheet = .task(t, defaultDue: nil) } label: {
-                    Text(t.title).font(.system(size: 13)).foregroundStyle(c.text)
+                    Text(t.title).font(.system(size: 12.5)).foregroundStyle(c.text)
                         .strikethrough(t.isCompleted)
                         .lineLimit(3)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -314,7 +314,7 @@ struct WeekTile: View {
         VStack(alignment: .leading, spacing: 0) {
             Rectangle().fill(color.base).frame(height: 4)
             VStack(alignment: .leading, spacing: 1) { content() }
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 5)
                 .padding(.top, 5)
                 .padding(.bottom, 5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

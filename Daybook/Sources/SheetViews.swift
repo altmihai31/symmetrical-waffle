@@ -346,11 +346,15 @@ struct EventEditor: View {
     @ViewBuilder private var titleCard: some View {
         if isNew {
             HStack(spacing: 10) {
-                ZStack(alignment: .leading) {
+                // The field wraps instead of scrolling sideways, so the highlight
+                // layer underneath stays lined up with the typed words.
+                ZStack(alignment: .topLeading) {
                     highlightLayer
                     TextField("", text: $titleText,
                               prompt: Text(kind == .task ? "Renew passport by next Friday" : "Plan my week tomorrow at 3PM")
-                                .foregroundColor(.white.opacity(0.6)))
+                                .foregroundColor(.white.opacity(0.6)),
+                              axis: .vertical)
+                        .lineLimit(1...4)
                         .font(.system(size: 19, weight: .medium))
                         .foregroundStyle(.white)
                         .tint(.white)
@@ -358,7 +362,15 @@ struct EventEditor: View {
                         .submitLabel(.done)
                         .onSubmit { if canSave { commit() } }
                         .accessibilityIdentifier("titleField")
-                        .onChange(of: titleText) { _, new in applyParse(new) }
+                        .onChange(of: titleText) { _, new in
+                            // Return in a wrapping field inserts a newline; treat it as Done.
+                            if new.contains("\n") {
+                                titleText = new.replacingOccurrences(of: "\n", with: "")
+                                titleFocused = false
+                                return
+                            }
+                            applyParse(new)
+                        }
                 }
                 if !titleText.isEmpty {
                     Button { titleText = "" } label: {
@@ -370,7 +382,8 @@ struct EventEditor: View {
                 }
             }
             .padding(.horizontal, 22)
-            .frame(height: 66)
+            .padding(.vertical, 20)
+            .frame(minHeight: 66)
             .background(RoundedRectangle(cornerRadius: 10).fill(Theme.accent))
             .padding(.horizontal, 14)
             .padding(.bottom, 22)
@@ -405,7 +418,8 @@ struct EventEditor: View {
         }
         return Text(a)
             .font(.system(size: 19, weight: .medium))
-            .lineLimit(1)
+            .lineLimit(1...4)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
