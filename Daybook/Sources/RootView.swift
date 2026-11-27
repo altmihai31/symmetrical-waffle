@@ -15,7 +15,7 @@ struct RootView: View {
             if model.drawerOpen {
                 Color.black.opacity(0.45)
                     .ignoresSafeArea()
-                    .onTapGesture { withAnimation(.easeOut(duration: 0.25)) { model.drawerOpen = false } }
+                    .onTapGesture { withAnimation(Theme.Motion.snappy) { model.drawerOpen = false } }
                     .transition(.opacity)
                     .accessibilityIdentifier("drawerBackdrop")
                 DrawerView()
@@ -23,6 +23,17 @@ struct RootView: View {
             }
         }
         .overlay(alignment: .bottom) { toastView }
+        .overlay {
+            if let id = model.celebration {
+                CelebrationOverlay()
+                    .id(id)
+                    .transition(.opacity)
+                    .task {
+                        try? await Task.sleep(nanoseconds: 1_900_000_000)
+                        if model.celebration == id { withAnimation(Theme.Motion.snappy) { model.celebration = nil } }
+                    }
+            }
+        }
         .sheet(item: $model.sheet) { route in
             SheetHost(route: route)
                 .environmentObject(model)
@@ -188,7 +199,7 @@ struct TitleRow: View {
                     .accessibilityIdentifier("todayButton")
             }
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Theme.Motion.snappy) {
                     model.searchOpen.toggle()
                     if !model.searchOpen { model.searchText = "" }
                 }
@@ -303,7 +314,7 @@ struct MonthStrip: View {
             }
             .onAppear { proxy.scrollTo(months[12], anchor: .center) }
             .onChange(of: model.selectedDate) { _, _ in
-                withAnimation { proxy.scrollTo(DateMath.monthStrip(around: model.selectedDate, before: 0, after: 0, calendar: cal)[0], anchor: .center) }
+                withAnimation(Theme.Motion.snappy) { proxy.scrollTo(DateMath.monthStrip(around: model.selectedDate, before: 0, after: 0, calendar: cal)[0], anchor: .center) }
             }
         }
         .frame(height: 50)

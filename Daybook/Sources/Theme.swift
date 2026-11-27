@@ -80,3 +80,19 @@ struct ChipColors {
         }
     }
 }
+
+extension Theme {
+    /// Shared timings, so every small change in the app moves the same way.
+    enum Motion {
+        /// Selection, highlights, rows appearing: quick and without overshoot.
+        static let snappy = Animation.snappy(duration: 0.25)
+        /// Very small feedback, such as a drop target lighting up.
+        static let quick = Animation.snappy(duration: 0.15)
+        /// Things that land: a ticked box, a dropped entry, a pulsing target.
+        static let bouncy = Animation.bouncy(duration: 0.4, extraBounce: 0.1)
+        /// Whole pages sliding or zooming.
+        static let page = Animation.spring(response: 0.42, dampingFraction: 0.9)
+        /// Sheets switching content.
+        static let sheet = Animation.smooth(duration: 0.25)
+    }
+}

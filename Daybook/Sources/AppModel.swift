@@ -21,14 +21,14 @@ enum Appearance: String, CaseIterable, Identifiable {
 /// What a bottom sheet is showing.
 enum SheetRoute: Identifiable {
     case event(CalEvent)              // detail, can switch to edit
-    case newEvent(start: Date, end: Date, allDay: Bool)
+    case newEvent(start: Date, end: Date, allDay: Bool, drawn: Bool = false)  // drawn: times set on the timeline
     case task(TaskItem?, defaultDue: Date?)
     case settings
 
     var id: String {
         switch self {
         case .event(let e): return "event-\(e.id)"
-        case .newEvent(let s, _, _): return "new-\(s.timeIntervalSince1970)"
+        case .newEvent(let s, _, _, _): return "new-\(s.timeIntervalSince1970)"
         case .task(let t, _): return "task-\(t?.id ?? "new")"
         case .settings: return "settings"
         }
@@ -74,6 +74,10 @@ final class AppModel: ObservableObject {
     @Published var searchOpen = false
     @Published var searchText = ""
     @Published var toast: UndoToast?
+    /// Changes each time the last open task of a day is ticked; the celebration plays on change.
+    @Published var celebration: UUID?
+    /// The entry being dragged to another day ("event:<id>" or "task:<id>"); its source dims.
+    @Published var dragging: String?
     @Published var errorMessage: String?
 
     // Data
@@ -234,7 +238,7 @@ final class AppModel: ObservableObject {
         motionReset = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 15_000_000)
             guard let self, !Task.isCancelled else { return }
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) { change() }
+            withAnimation(Theme.Motion.page) { change() }
             try? await Task.sleep(nanoseconds: 700_000_000)
             if !Task.isCancelled { self.motion = .fade }
         }
@@ -344,7 +348,14 @@ final class AppModel: ObservableObject {
     }
 
     func toggle(_ task: TaskItem) {
-        Haptics.tap()
+        let finishesDay = task.due.map { calendar.isDateInToday($0) } == true
+            && DayCompletion.completesDay(task, among: tasks, calendar: calendar)
+        if finishesDay {
+            Haptics.success()
+            celebration = UUID()
+        } else {
+            Haptics.tap()
+        }
         var t = task
         t.isCompleted.toggle()
         t.completionDate = t.isCompleted ? Date() : nil
@@ -356,7 +367,7 @@ final class AppModel: ObservableObject {
 
     private func apply(task: TaskItem) {
         if let i = tasks.firstIndex(where: { $0.id == task.id }) {
-            withAnimation(.easeInOut(duration: 0.2)) { tasks[i] = task }
+            withAnimation(Theme.Motion.snappy) { tasks[i] = task }
         }
         _ = perform { try backend.save(task, isNew: false) }
     }
@@ -389,7 +400,27 @@ final class AppModel: ObservableObject {
     // MARK: Drag to reschedule, postpone
 
     /// Handles a drop of "event:<id>" or "task:<id>" on a day.
+    /// Marks an entry as lifted. SwiftUI doesn't report a cancelled drag, so the mark also
+    /// clears itself after a few seconds.
+    func beginDrag(_ payload: String) {
+        guard dragging != payload else { return }
+        withAnimation(Theme.Motion.snappy) { dragging = payload }
+        dragReset?.cancel()
+        dragReset = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(Theme.Motion.snappy) { self.dragging = nil }
+        }
+    }
+    private var dragReset: Task<Void, Never>?
+
+    func endDrag() {
+        dragReset?.cancel()
+        if dragging != nil { withAnimation(Theme.Motion.snappy) { dragging = nil } }
+    }
+
     func drop(_ payloads: [String], on day: Date) -> Bool {
+        endDrag()
         guard let p = payloads.first else { return false }
         if p.hasPrefix("event:") {
             let id = String(p.dropFirst("event:".count))
@@ -419,13 +450,13 @@ final class AppModel: ObservableObject {
         var saved: CalEvent?
         guard perform({ saved = try backend.save(moved, isNew: false) }) else { return false }
         Haptics.success()
-        withAnimation(.easeInOut(duration: 0.25)) { reloadEvents() }
+        withAnimation(Theme.Motion.bouncy) { reloadEvents() }
         showToast("Moved to \(DateText.shortDayComma(day, calendar: cal))") { [weak self] in
             guard let self else { return }
             var restore = event
             restore.id = saved?.id ?? moved.id
             _ = self.perform { try self.backend.save(restore, isNew: false) }
-            withAnimation { self.reloadEvents() }
+            withAnimation(Theme.Motion.snappy) { self.reloadEvents() }
         }
         return true
     }

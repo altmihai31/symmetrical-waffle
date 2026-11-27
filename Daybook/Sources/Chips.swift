@@ -22,12 +22,17 @@ struct EntryChip: View {
         return Button { model.sheet = .event(e) } label: {
             HStack(spacing: 0) {
                 Rectangle().fill(c.base).frame(width: 3.5)
+                if height >= 15 {
+                    EventGlyph(title: e.title, size: fontSize - 1.5)
+                        .foregroundStyle(c.text)
+                        .padding(.leading, 2.5)
+                }
                 Text(e.title)
                     .font(.system(size: fontSize, weight: .medium))
                     .foregroundStyle(c.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .padding(.leading, 3)
+                    .padding(.leading, 2.5)
                 Spacer(minLength: 0)
             }
             .frame(height: height)
@@ -35,7 +40,7 @@ struct EntryChip: View {
             .clipShape(RoundedRectangle(cornerRadius: 3))
         }
         .buttonStyle(.plain)
-        .draggable("event:\(e.id)") { DragPreview(title: e.title, color: c.base) }
+        .liftable("event:\(e.id)", title: e.title, color: c.base, model: model)
         .accessibilityIdentifier("chip-\(e.title)")
     }
 
@@ -51,7 +56,7 @@ struct EntryChip: View {
                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(c.base, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .draggable("event:\(e.id)") { DragPreview(title: e.title, color: c.base) }
+        .liftable("event:\(e.id)", title: e.title, color: c.base, model: model)
         .accessibilityIdentifier("chip-\(e.title)")
     }
 
@@ -75,7 +80,7 @@ struct EntryChip: View {
         .background(c.fill.opacity(0.7))
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .opacity(t.isCompleted ? 0.55 : 1)
-        .draggable("task:\(t.id)") { DragPreview(title: t.title, color: c.base) }
+        .liftable("task:\(t.id)", title: t.title, color: c.base, model: model)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chip-\(t.title)")
     }
@@ -85,6 +90,7 @@ struct EntryChip: View {
 struct DragPreview: View {
     let title: String
     let color: Color
+    var onLift: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 6) {
@@ -96,6 +102,34 @@ struct DragPreview: View {
         .padding(.vertical, 8)
         .background(RoundedRectangle(cornerRadius: 9).fill(Color(white: 0.16)))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(color, lineWidth: 1.5))
+        .onAppear(perform: onLift)
+    }
+}
+
+extension View {
+    /// Makes an entry draggable to another day. While it is in the air the original dims,
+    /// so it reads as lifted out of its place.
+    func liftable(_ payload: String, title: String, color: Color, model: AppModel) -> some View {
+        opacity(model.dragging == payload ? 0.4 : 1)
+            .draggable(payload) {
+                DragPreview(title: title, color: color) { model.beginDrag(payload) }
+            }
+    }
+}
+
+/// The SF Symbol Daybook picks for an event from its title (gym, flight, dinner...), if any.
+struct EventGlyph: View {
+    let title: String
+    var size: CGFloat = 12
+
+    var body: some View {
+        if let symbol = EventIcon.symbol(for: title) {
+            Image(systemName: symbol)
+                .font(.system(size: size, weight: .semibold))
+                .symbolEffect(.bounce, value: symbol)
+                .transition(.scale(scale: 0.4).combined(with: .opacity))
+                .accessibilityHidden(true)
+        }
     }
 }
 
@@ -120,8 +154,20 @@ struct CheckBox: View {
                 }
             }
             .frame(width: size, height: size)
+            .keyframeAnimator(initialValue: CGFloat(1), trigger: done) { box, y in
+                // Squash and stretch: wider as it gets shorter.
+                box.scaleEffect(x: 1 + (1 - y) * 0.7, y: y)
+            } keyframes: { _ in
+                KeyframeTrack {
+                    CubicKeyframe(1.08, duration: 0.1)
+                    CubicKeyframe(0.86, duration: 0.12)
+                    CubicKeyframe(1.05, duration: 0.14)
+                    CubicKeyframe(0.98, duration: 0.12)
+                    CubicKeyframe(1, duration: 0.14)
+                }
+            }
             .contentShape(Rectangle().inset(by: -6))
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: done)
+            .animation(Theme.Motion.bouncy, value: done)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(done ? "Mark as not done" : "Complete")
@@ -160,7 +206,7 @@ struct MultiDayBar: View {
             .clipShape(RoundedRectangle(cornerRadius: 3))
         }
         .buttonStyle(.plain)
-        .draggable("event:\(event.id)") { DragPreview(title: event.title, color: c.base) }
+        .liftable("event:\(event.id)", title: event.title, color: c.base, model: model)
         .accessibilityIdentifier("bar-\(event.title)")
     }
 }

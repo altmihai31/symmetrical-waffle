@@ -172,6 +172,62 @@ final class DaybookUITests: XCTestCase {
         snap("20-day-after-zoom")
     }
 
+    /// The ideas from the Calendars study: peek, compact card, drawing an event, celebration.
+    func testStudyFeatures() {
+        app.launch()
+        XCTAssertTrue(el("monthView").waitForExistence(timeout: 15))
+        let key = DateFormatter()
+        key.calendar = Calendar(identifier: .gregorian)
+        key.locale = Locale(identifier: "en_US_POSIX")
+        key.dateFormat = "yyyy-MM-dd"
+
+        // Press and hold a month day to peek at its agenda.
+        let today = el("day-\(key.string(from: Date()))")
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
+        today.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).press(forDuration: 1.3)
+        snap("21-month-peek")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).tap()
+
+        // Tapping an event opens the compact card first.
+        tap("tab-List")
+        tap("row-Product sync")
+        XCTAssertTrue(el("detailTitle").waitForExistence(timeout: 5))
+        XCTAssertTrue(el("action-edit").waitForExistence(timeout: 5))
+        snap("22-event-card")
+        tap("action-edit")
+        XCTAssertTrue(el("titleField").waitForExistence(timeout: 5))
+        tap("closeButton")
+
+        // Touch and hold empty time in the Day view, then drag down to set the length.
+        tap("tab-Day")
+        let day = el("dayView")
+        XCTAssertTrue(day.waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.8)
+        let free = [13, 14, 20, 21, 8, 12, 19, 22, 17, 18, 23, 6, 5, 4, 3, 2, 1]
+        let bottom = day.frame.maxY
+        guard let hour = free.map({ el("hour-\($0)") }).first(where: { $0.exists && $0.isHittable && $0.frame.maxY + 100 < bottom })
+        else { return XCTFail("No free hour on screen") }
+        let start = hour.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.15))
+        start.press(forDuration: 0.9, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 75)),
+                    withVelocity: 120, thenHoldForDuration: 0.4)
+        XCTAssertTrue(el("titleField").waitForExistence(timeout: 5))
+        XCTAssertTrue(el("when-start").waitForExistence(timeout: 5), "A drawn event shows its times")
+        snap("23-drawn-event")
+        tap("closeButton")
+
+        // Ticking today's last open task plays the celebration.
+        tap("tab-Tasks")
+        for t in ["Send NDA to legal", "Renew car insurance", "Water plants"] {
+            tap("check-\(t)")
+            Thread.sleep(forTimeInterval: 0.6)
+        }
+        tap("check-Call the bank")
+        XCTAssertTrue(el("celebration").waitForExistence(timeout: 3))
+        snap("24-celebration")
+        XCTAssertTrue(el("allDone").waitForExistence(timeout: 5))
+        snap("25-all-done")
+    }
+
     func testLightMode() {
         app.launchArguments += ["-daybook.appearance", "Light"]
         app.launch()

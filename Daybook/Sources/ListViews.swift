@@ -26,7 +26,10 @@ struct AgendaRow: View {
                     .frame(width: 52, alignment: .trailing)
                     RoundedRectangle(cornerRadius: 2).fill(c.base).frame(width: 4)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(e.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
+                        HStack(alignment: .firstTextBaseline, spacing: 5) {
+                            EventGlyph(title: e.title, size: 13).foregroundStyle(c.text)
+                            Text(e.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
+                        }
                         if let loc = e.location, !loc.isEmpty {
                             Text(loc).font(.system(size: 13)).foregroundStyle(Theme.ink2)
                         } else if !e.isAllDay {
@@ -127,7 +130,7 @@ struct AgendaView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                 if sections.isEmpty {
-                    EmptyState(text: "Nothing planned in the next two months.")
+                    EmptyState(icon: "calendar", text: "Nothing planned in the next two months.")
                 }
                 ForEach(sections) { section in
                     Section {
@@ -167,14 +170,72 @@ struct SectionHeader: View {
     }
 }
 
+/// A quiet message for an empty screen. The icon arrives with a small pop, then floats gently.
 struct EmptyState: View {
+    var icon: String = "calendar"
     let text: String
+    var hint: String? = nil
+    @State private var shown = false
+
     var body: some View {
-        Text(text)
-            .font(.system(size: 15))
-            .foregroundStyle(Theme.ink3)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 60)
+        VStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 34, weight: .regular))
+                .foregroundStyle(Theme.ink3)
+                .phaseAnimator([0.0, 1.0]) { image, phase in
+                    image.offset(y: -4 * phase).opacity(0.75 + 0.25 * phase)
+                } animation: { _ in .easeInOut(duration: 1.6) }
+                .scaleEffect(shown ? 1 : 0.5)
+            Text(text)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Theme.ink2)
+            if let hint {
+                Text(hint)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.ink3)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+        }
+        .opacity(shown ? 1 : 0)
+        .offset(y: shown ? 0 : 12)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+        .onAppear { withAnimation(Theme.Motion.bouncy.delay(0.1)) { shown = true } }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("emptyState")
+    }
+}
+
+/// Shown at the top of Tasks when nothing is due today or overdue.
+struct AllDoneBanner: View {
+    @State private var shown = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 26))
+                .foregroundStyle(Color(hex: "#2fb35a"))
+                .symbolEffect(.bounce, value: shown)
+                .phaseAnimator([1.0, 1.06]) { image, s in
+                    image.scaleEffect(s)
+                } animation: { _ in .easeInOut(duration: 1.4) }
+            VStack(alignment: .leading, spacing: 1) {
+                Text("All done for today").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text("Nothing due or overdue.").font(.system(size: 13)).foregroundStyle(Theme.ink2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#2fb35a").opacity(0.12)))
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
+        .scaleEffect(shown ? 1 : 0.9)
+        .opacity(shown ? 1 : 0)
+        .onAppear { withAnimation(Theme.Motion.bouncy) { shown = true } }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("allDone")
     }
 }
 
@@ -187,14 +248,17 @@ struct TasksView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if groups.isEmpty {
-                    EmptyState(text: model.reminderLists.isEmpty && !model.isDemo
+                    EmptyState(icon: "checklist",
+                               text: model.reminderLists.isEmpty && !model.isDemo
                                ? "No Reminders lists from iCloud, Google or Outlook yet."
                                : "No tasks. Tap + to add one.")
+                } else if DayCompletion.allCaughtUp(model.visibleTasks, now: Date(), calendar: model.calendar) {
+                    AllDoneBanner().transition(.scale(scale: 0.9).combined(with: .opacity))
                 }
                 ForEach(Array(groups.enumerated()), id: \.offset) { _, g in
                     if g.group == .done {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.2)) { showDone.toggle() }
+                            withAnimation(Theme.Motion.snappy) { showDone.toggle() }
                         } label: {
                             HStack {
                                 SectionHeader(title: "Done", count: g.tasks.count, color: Theme.ink2)
@@ -232,7 +296,7 @@ struct SearchResultsView: View {
                                       calendar: model.calendar)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                if sections.isEmpty { EmptyState(text: "No matches for “\(model.searchText)”") }
+                if sections.isEmpty { EmptyState(icon: "magnifyingglass", text: "No matches for “\(model.searchText)”") }
                 ForEach(sections) { section in
                     SectionHeader(title: section.title,
                                   subtitle: ["Today", "Tomorrow", "Yesterday"].contains(section.title)
@@ -283,7 +347,7 @@ struct DrawerView: View {
 
     private func navRow(_ icon: String, _ title: String, action: @escaping () -> Void) -> some View {
         Button {
-            withAnimation(.easeOut(duration: 0.25)) {
+            withAnimation(Theme.Motion.snappy) {
                 model.drawerOpen = false
                 action()
             }

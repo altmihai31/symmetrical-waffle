@@ -144,21 +144,39 @@ struct DayCell: View {
         .overlay {
             if dropTargeted {
                 Rectangle().fill(Theme.accentSoft).overlay(Rectangle().stroke(Theme.accent, lineWidth: 2))
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
             }
         }
+        // The cell under a dragged entry swells a little, so it's clear where it will land.
+        .scaleEffect(dropTargeted ? 1.06 : 1)
+        .zIndex(dropTargeted ? 1 : 0)
+        .animation(Theme.Motion.bouncy, value: dropTargeted)
         .contentShape(Rectangle())
         .onTapGesture {
             if isSelected {
                 model.zoomIntoDay(day, from: anchor)
             } else {
                 Haptics.tick()
-                withAnimation(.easeInOut(duration: 0.15)) { model.select(day) }
+                withAnimation(Theme.Motion.quick) { model.select(day) }
             }
+        }
+        .contextMenu {
+            Button { model.openNew(at: DateMath.nextRoundHour(on: day, now: Date(), calendar: cal)) } label: {
+                Label("New event", systemImage: "calendar.badge.plus")
+            }
+            Button { model.sheet = .task(nil, defaultDue: cal.startOfDay(for: day)) } label: {
+                Label("New task", systemImage: "checklist")
+            }
+            Button { model.zoomIntoDay(day, from: anchor) } label: {
+                Label("Open day", systemImage: "arrow.up.left.and.arrow.down.right")
+            }
+        } preview: {
+            DayPeek(day: day, items: items, model: model)
         }
         .dropDestination(for: String.self) { payloads, _ in
             model.drop(payloads, on: day)
         } isTargeted: { on in
-            withAnimation(.easeInOut(duration: 0.12)) { dropTargeted = on }
+            dropTargeted = on
             if on { Haptics.tick() }
         }
         .accessibilityElement(children: .contain)
@@ -179,5 +197,79 @@ struct DayCell: View {
     static func key(_ d: Date, _ cal: Calendar) -> String {
         let c = cal.dateComponents([.year, .month, .day], from: d)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+}
+
+/// What pressing and holding a month day shows: that day's agenda at a readable size.
+struct DayPeek: View {
+    let day: Date
+    let items: [DayItem]
+    let model: AppModel
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let cal = model.calendar
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(DateText.fullDay(day, calendar: cal, now: Date()))
+                    .font(.system(size: 17, weight: .bold))
+                Spacer()
+                if cal.isDateInToday(day) {
+                    Text("Today").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+            Rectangle().fill(Theme.line).frame(height: 0.5)
+            if items.isEmpty {
+                Text("Nothing planned")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.ink3)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 28)
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(items.prefix(8)) { item in row(item) }
+                    if items.count > 8 {
+                        Text("+\(items.count - 8) more").font(.system(size: 13)).foregroundStyle(Theme.ink3)
+                    }
+                }
+                .padding(16)
+            }
+        }
+        .foregroundStyle(Theme.ink)
+        .frame(width: 300, alignment: .topLeading)
+        .background(Theme.sheet)
+    }
+
+    @ViewBuilder private func row(_ item: DayItem) -> some View {
+        switch item {
+        case .timed(let e), .allDay(let e):
+            let c = ChipColors(hex: model.colorHex(for: e), scheme: scheme)
+            HStack(alignment: .top, spacing: 10) {
+                Text(e.isAllDay ? "all-day" : model.time(e.start))
+                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Theme.ink2)
+                    .frame(width: 46, alignment: .trailing)
+                RoundedRectangle(cornerRadius: 2).fill(c.base).frame(width: 4, height: 18)
+                if let symbol = EventIcon.symbol(for: e.title) {
+                    Image(systemName: symbol).font(.system(size: 13, weight: .semibold)).foregroundStyle(c.text)
+                }
+                Text(e.title).font(.system(size: 15, weight: .medium)).lineLimit(1)
+            }
+        case .task(let t):
+            HStack(spacing: 10) {
+                Text(t.dueHasTime && t.due != nil ? model.time(t.due!) : "task")
+                    .font(.system(size: 13, weight: .medium).monospacedDigit())
+                    .foregroundStyle(Theme.ink3)
+                    .frame(width: 46, alignment: .trailing)
+                Image(systemName: t.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(Color(hex: model.colorHex(for: t)))
+                Text(t.title).font(.system(size: 15, weight: .medium)).lineLimit(1)
+                    .strikethrough(t.isCompleted)
+                    .foregroundStyle(t.isCompleted ? Theme.ink3 : Theme.ink)
+            }
+        }
     }
 }

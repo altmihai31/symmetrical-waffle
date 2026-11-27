@@ -44,7 +44,7 @@ struct TaskEditor: View {
                     Card {
                         CardRow(icon: "calendar", title: "Due date") {
                             Toggle("", isOn: Binding(get: { hasDue }, set: { on in
-                                withAnimation {
+                                withAnimation(Theme.Motion.snappy) {
                                     hasDue = on
                                     draft.due = on ? (draft.due ?? model.selectedDate) : nil
                                     if !on { draft.dueHasTime = false; showDateWheel = false; showTimeWheel = false }
@@ -52,7 +52,7 @@ struct TaskEditor: View {
                             })).labelsHidden()
                         }
                         if hasDue, let due = draft.due {
-                            Button { withAnimation { showDateWheel.toggle(); showTimeWheel = false } } label: {
+                            Button { withAnimation(Theme.Motion.snappy) { showDateWheel.toggle(); showTimeWheel = false } } label: {
                                 Text(DateText.longDay(due, calendar: cal, now: Date()))
                                     .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(Theme.accent)
@@ -68,7 +68,7 @@ struct TaskEditor: View {
                             Divider().padding(.leading, 48)
                             CardRow(icon: "clock", title: "Time") {
                                 Toggle("", isOn: Binding(get: { draft.dueHasTime }, set: { on in
-                                    withAnimation {
+                                    withAnimation(Theme.Motion.snappy) {
                                         draft.dueHasTime = on
                                         if on, let d = draft.due {
                                             draft.due = DateMath.nextRoundHour(on: d, now: Date(), calendar: cal)
@@ -81,7 +81,7 @@ struct TaskEditor: View {
                                 })).labelsHidden()
                             }
                             if draft.dueHasTime {
-                                Button { withAnimation { showTimeWheel.toggle(); showDateWheel = false } } label: {
+                                Button { withAnimation(Theme.Motion.snappy) { showTimeWheel.toggle(); showDateWheel = false } } label: {
                                     Text(model.time(due))
                                         .font(.system(size: 15, weight: .semibold).monospacedDigit())
                                         .foregroundStyle(Theme.accent)

@@ -10,8 +10,8 @@ struct SheetHost: View {
             switch route {
             case .event(let e):
                 EventSheet(original: e)
-            case .newEvent(let s, let e, let allDay):
-                EventEditor(original: nil, start: s, end: e, allDay: allDay)
+            case .newEvent(let s, let e, let allDay, let drawn):
+                EventEditor(original: nil, start: s, end: e, allDay: allDay, showTimes: drawn)
                     .presentationDetents([.large])
             case .task(let t, let due):
                 TaskEditor(original: t, defaultDue: due)
@@ -100,7 +100,9 @@ struct EventSheet: View {
 
     let original: CalEvent
     @State private var editing = false
-    @State private var detent: PresentationDetent = .medium
+    /// Opens as a compact card (time, place, quick actions); pull it up for everything else.
+    @State private var detent: PresentationDetent = EventSheet.compact
+    static let compact = PresentationDetent.height(350)
     @State private var confirmDelete = false
 
     init(original: CalEvent) { self.original = original }
@@ -114,8 +116,8 @@ struct EventSheet: View {
                 detail.transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.22), value: editing)
-        .presentationDetents(editing ? [.large] : [.medium, .large], selection: $detent)
+        .animation(Theme.Motion.sheet, value: editing)
+        .presentationDetents(editing ? [.large] : [EventSheet.compact, .large], selection: $detent)
     }
 
     private var detail: some View {
@@ -128,8 +130,13 @@ struct EventSheet: View {
             HStack(alignment: .top, spacing: 22) {
                 Circle().fill(Color(hex: model.colorHex(for: e))).frame(width: 20, height: 20).padding(.top, 12)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(e.title).font(.system(size: 30, weight: .bold))
-                        .accessibilityIdentifier("detailTitle")
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        EventGlyph(title: e.title, size: 24)
+                            .foregroundStyle(Color(hex: model.colorHex(for: e)))
+                        Text(e.title).font(.system(size: 30, weight: .bold))
+                            .lineLimit(detent == EventSheet.compact ? 1 : 3)
+                            .accessibilityIdentifier("detailTitle")
+                    }
                     if days.count > 1 {
                         Text(DateText.fullDay(days.first!, calendar: cal) + " –")
                             .font(.system(size: 20)).foregroundStyle(Theme.ink2)
@@ -141,7 +148,7 @@ struct EventSheet: View {
                     }
                     Text(e.isAllDay ? "All day" : "\(model.time(e.start)) - \(model.time(e.end))")
                         .font(.system(size: 20, weight: .semibold))
-                    if let info {
+                    if let info, detent != EventSheet.compact {
                         Text("\(info.title) (\(info.account.label))")
                             .font(.system(size: 18)).foregroundStyle(Theme.ink2)
                             .padding(.top, 10)
@@ -150,8 +157,12 @@ struct EventSheet: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 22)
-            .padding(.top, 34)
-            .padding(.bottom, 20)
+            .padding(.top, 30)
+            .padding(.bottom, 14)
+
+            quickActions(e, editable: editable)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 16)
 
             Rectangle().fill(Theme.line).frame(height: 1).padding(.leading, 66)
 
@@ -204,6 +215,41 @@ struct EventSheet: View {
         }
     }
 
+    /// Join call, Directions and Edit as big capsules, so the common next step is one tap.
+    @ViewBuilder private func quickActions(_ e: CalEvent, editable: Bool) -> some View {
+        let link = e.url.flatMap { $0.isEmpty ? nil : URL(string: $0) }
+        let place = e.location.flatMap { $0.isEmpty ? nil : $0 }
+        let directions = place.flatMap { p in
+            p.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed).flatMap { URL(string: "maps://?q=\($0)") }
+        }
+        let isCall = link != nil || (place.map { ["zoom", "meet", "teams", "webex"].contains($0.lowercased()) } ?? false)
+        HStack(spacing: 10) {
+            if let link {
+                Link(destination: link) { actionLabel("video.fill", "Join call", prominent: true) }
+                    .accessibilityIdentifier("action-join")
+            }
+            if let directions, !isCall {
+                Link(destination: directions) { actionLabel("arrow.triangle.turn.up.right.diamond.fill", "Directions", prominent: link == nil) }
+                    .accessibilityIdentifier("action-directions")
+            }
+            if editable {
+                Button { editing = true; detent = .large } label: { actionLabel("pencil", "Edit", prominent: false) }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("action-edit")
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func actionLabel(_ icon: String, _ title: String, prominent: Bool) -> some View {
+        Label(title, systemImage: icon)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(prominent ? .white : Theme.ink)
+            .padding(.horizontal, 14)
+            .frame(height: 38)
+            .background(Capsule().fill(prominent ? Theme.accent : Theme.fill))
+    }
+
     private func infoRow(_ icon: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 22) {
             Image(systemName: icon).foregroundStyle(Theme.ink3).frame(width: 22).padding(.top, 2)
@@ -232,6 +278,7 @@ struct EventEditor: View {
     @State private var touched: Set<String> = []   // fields changed by hand win over parsing
     @State private var showDetails: Bool
     @State private var showColors: Bool
+    private let showTimes: Bool
     @State private var showMoreColors = false
     @State private var showLocation = false
     @State private var showNote = false
@@ -241,8 +288,9 @@ struct EventEditor: View {
     @State private var confirmDelete = false
     @FocusState private var titleFocused: Bool
 
-    init(original: CalEvent?, start: Date, end: Date, allDay: Bool) {
+    init(original: CalEvent?, start: Date, end: Date, allDay: Bool, showTimes: Bool = false) {
         self.original = original
+        self.showTimes = showTimes
         let e = original ?? CalEvent(id: "", title: "", calendarID: "", start: start, end: end, isAllDay: allDay)
         _draft = State(initialValue: e)
         _titleText = State(initialValue: e.title)
@@ -254,7 +302,7 @@ struct EventEditor: View {
     private var cal: Calendar { model.calendar }
     private var calendarColor: Color { Color(hex: model.info(for: draft.calendarID)?.colorHex ?? "#8e8e93") }
     private var color: Color { Color(hex: draft.customColorHex ?? model.info(for: draft.calendarID)?.colorHex ?? "#8e8e93") }
-    private var showWhen: Bool { !isNew || showDetails || parsed.recognisedAnything }
+    private var showWhen: Bool { !isNew || showTimes || showDetails || parsed.recognisedAnything }
     private var canSave: Bool {
         let t = (isNew && parsed.recognisedAnything ? parsed.title : titleText).trimmingCharacters(in: .whitespaces)
         if kind == .task { return !t.isEmpty && model.defaultListID != nil }
@@ -277,7 +325,7 @@ struct EventEditor: View {
                         taskListRow.padding(.top, 22)
                     } else {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.25)) { showDetails = true }
+                            withAnimation(Theme.Motion.snappy) { showDetails = true }
                         } label: {
                             Text("Show Details")
                                 .font(.system(size: 18))
@@ -372,6 +420,12 @@ struct EventEditor: View {
                             applyParse(new)
                         }
                 }
+                if kind == .event {
+                    // The icon Daybook will show for this event, picked as the title is typed.
+                    EventGlyph(title: parsed.title.isEmpty ? titleText : parsed.title, size: 19)
+                        .foregroundStyle(.white)
+                        .animation(Theme.Motion.bouncy, value: EventIcon.symbol(for: parsed.title.isEmpty ? titleText : parsed.title))
+                }
                 if !titleText.isEmpty {
                     Button { titleText = "" } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -426,7 +480,7 @@ struct EventEditor: View {
 
     private func applyParse(_ text: String) {
         let parser = NaturalLanguageParser(calendar: cal, now: Date())
-        withAnimation(.easeInOut(duration: 0.2)) { parsed = parser.parse(text) }
+        withAnimation(Theme.Motion.snappy) { parsed = parser.parse(text) }
         if let match = model.match(tag: parsed.calendarTag, in: model.writableCalendars), !touched.contains("calendar") {
             draft.calendarID = match.id
         }
@@ -453,7 +507,7 @@ struct EventEditor: View {
 
     private func kindButton(_ k: NewKind, icon: String) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) { kind = k }
+            withAnimation(Theme.Motion.snappy) { kind = k }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: icon)
@@ -581,7 +635,7 @@ struct EventEditor: View {
 
     private func setAllDay(_ on: Bool) {
         touched.insert("time")
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(Theme.Motion.snappy) {
             if on {
                 let first = cal.startOfDay(for: draft.start)
                 let last = cal.startOfDay(for: draft.end.addingTimeInterval(-1))
@@ -660,7 +714,7 @@ struct EventEditor: View {
                 .accessibilityIdentifier("calendarPicker")
                 Rectangle().fill(Theme.line).frame(height: 1).padding(.leading, 80).padding(.trailing, 80)
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { showColors.toggle() }
+                    withAnimation(Theme.Motion.snappy) { showColors.toggle() }
                 } label: {
                     HStack(spacing: 10) {
                         Text("Custom Event Color").font(.system(size: 16))
@@ -680,7 +734,7 @@ struct EventEditor: View {
                             swatch(Theme.swatches[i].hex, name: Theme.swatches[i].name)
                         }
                         Spacer(minLength: 0)
-                        Button { withAnimation { showMoreColors.toggle() } } label: { MorePaletteIcon() }
+                        Button { withAnimation(Theme.Motion.snappy) { showMoreColors.toggle() } } label: { MorePaletteIcon() }
                             .buttonStyle(.plain)
                             .accessibilityLabel("More colours")
                     }
@@ -825,7 +879,7 @@ struct EventEditor: View {
     }
 
     private func barButton(_ icon: String, _ title: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button { withAnimation(.easeInOut(duration: 0.2)) { action() } } label: {
+        Button { withAnimation(Theme.Motion.snappy) { action() } } label: {
             VStack(spacing: 6) {
                 Image(systemName: icon).font(.system(size: 22))
                 Text(title).font(.system(size: 15))

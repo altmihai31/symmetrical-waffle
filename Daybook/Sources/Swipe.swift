@@ -49,7 +49,7 @@ struct SwipeActions: ViewModifier {
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(armed ? action.color : action.color.opacity(0.55))
-            .animation(.easeOut(duration: 0.12), value: armed)
+            .animation(Theme.Motion.quick, value: armed)
         }
     }
 
@@ -84,10 +84,10 @@ struct SwipeActions: ViewModifier {
                         }
                     } else {
                         action.run()
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { offset = 0 }
+                        withAnimation(Theme.Motion.bouncy) { offset = 0 }
                     }
                 } else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { offset = 0 }
+                    withAnimation(Theme.Motion.bouncy) { offset = 0 }
                 }
             }
     }
