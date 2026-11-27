@@ -206,7 +206,7 @@ final class DaybookUITests: XCTestCase {
         let day = el("dayView")
         XCTAssertTrue(day.waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.8)
-        let free = [13, 14, 20, 21, 8, 12, 19, 22, 17, 18, 23, 6, 5, 4, 3, 2, 1]
+        let free = [20, 21, 8, 12, 19, 22, 17, 18, 23, 6, 5, 4, 3, 2, 1]
         let bottom = day.frame.maxY
         guard let hour = free.map({ el("hour-\($0)") }).first(where: { $0.exists && $0.isHittable && $0.frame.maxY + 100 < bottom })
         else { return XCTFail("No free hour on screen") }

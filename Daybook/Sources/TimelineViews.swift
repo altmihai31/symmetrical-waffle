@@ -24,6 +24,8 @@ struct TimelineGrid: View {
     var tapToCreate: Bool = false
     @State private var nowTick = Date()
     @State private var draft: TimelineDraftState?
+    @State private var lastTouchY: CGFloat?
+    @State private var draftStartY: CGFloat?
 
     private static let space = "timeline"
 
@@ -65,7 +67,8 @@ struct TimelineGrid: View {
                                     .onTapGesture {
                                         model.openNew(at: cal.date(byAdding: .hour, value: h, to: cal.startOfDay(for: day)))
                                     }
-                                    .gesture(draftGesture(hour: h, day: day))
+                                    .onLongPressGesture(minimumDuration: 0.35) { beginDraft(hour: h) }
+                                    .simultaneousGesture(draftDrag(day: day))
                                     .accessibilityIdentifier("hour-\(h)")
                             }
                         }
@@ -162,40 +165,47 @@ struct TimelineGrid: View {
             .transition(.opacity)
     }
 
-    /// Long press (0.35 s) drops a one-hour draft at the hour; dragging then moves its end,
-    /// snapping to 15 minutes with a tick each step. Letting go opens the new-event sheet.
-    private func draftGesture(hour: Int, day: Date) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.35)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space)))
-            .onChanged { value in
-                guard case .second(true, let drag) = value else { return }
-                var d: TimelineDraftState
-                if let existing = draft {
-                    d = existing
-                } else {
-                    Haptics.tap()
-                    let r = TimelineDraft.range(anchor: hour * 60, current: 0,
-                                                defaultLength: model.settings.defaultEventMinutes, moved: false)
-                    d = TimelineDraftState(anchor: hour * 60, start: r.start, end: r.end)
-                }
-                if let drag {
-                    if !d.located {
-                        // Start where the finger actually is, not at the top of its hour.
-                        d.anchor = TimelineDraft.floorSnap(Double(drag.startLocation.y / hourHeight) * 60)
-                        d.located = true
-                    }
-                    let moved = abs(drag.translation.height) > hourHeight / 8
-                    let r = TimelineDraft.range(anchor: d.anchor, current: Double(drag.location.y / hourHeight) * 60,
-                                                defaultLength: model.settings.defaultEventMinutes, moved: moved)
-                    d.start = r.start
-                    d.end = r.end
-                }
-                if d != draft {
-                    if let old = draft, old.start != d.start || old.end != d.end { Haptics.tick() }
-                    withAnimation(draft == nil ? Theme.Motion.bouncy : Theme.Motion.quick) { draft = d }
-                }
+    /// Long press (0.35 s) drops a draft of the default length at the hour; dragging then moves its
+    /// end, snapping to 15 minutes with a tick each step. Letting go opens the new-event sheet.
+    private func beginDraft(hour: Int) {
+        guard draft == nil else { return }
+        Haptics.tap()
+        let r = TimelineDraft.range(anchor: hour * 60, current: 0,
+                                    defaultLength: model.settings.defaultEventMinutes, moved: false)
+        var d = TimelineDraftState(anchor: hour * 60, start: r.start, end: r.end)
+        if let y = lastTouchY {
+            // Start where the finger is, not at the top of its hour.
+            d.anchor = TimelineDraft.floorSnap(Double(y / hourHeight) * 60)
+            let r2 = TimelineDraft.range(anchor: d.anchor, current: 0,
+                                         defaultLength: model.settings.defaultEventMinutes, moved: false)
+            d.start = r2.start
+            d.end = r2.end
+            d.located = true
+        }
+        draftStartY = lastTouchY
+        withAnimation(Theme.Motion.bouncy) { draft = d }
+    }
+
+    /// Runs alongside the long press: remembers where the finger is, and once a draft exists,
+    /// stretches it to the finger.
+    private func draftDrag(day: Date) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+            .onChanged { drag in
+                lastTouchY = drag.location.y
+                guard var d = draft else { return }
+                let origin = draftStartY ?? drag.startLocation.y
+                let moved = abs(drag.location.y - origin) > hourHeight / 8
+                let r = TimelineDraft.range(anchor: d.anchor, current: Double(drag.location.y / hourHeight) * 60,
+                                            defaultLength: model.settings.defaultEventMinutes, moved: moved)
+                guard r.start != d.start || r.end != d.end else { return }
+                d.start = r.start
+                d.end = r.end
+                Haptics.tick()
+                withAnimation(Theme.Motion.quick) { draft = d }
             }
             .onEnded { _ in
+                lastTouchY = nil
+                draftStartY = nil
                 guard let d = draft else { return }
                 let cal = model.calendar
                 model.sheet = .newEvent(start: TimelineDraft.date(minute: d.start, on: day, calendar: cal),
