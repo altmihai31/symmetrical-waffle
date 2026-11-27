@@ -1,4 +1,4 @@
-# Daybook screenshots (claude-project-thread-ctkmy2, 437d099)
+# Daybook screenshots (claude-project-thread-ctkmy2, 3d374ca)
 
 ## 01-month
 
@@ -35,6 +35,10 @@
 ## 09-new-event-parsed
 
 <img src="09-new-event-parsed.png" width="320">
+
+## 09a-new-event-empty
+
+<img src="09a-new-event-empty.png" width="320">
 
 ## 10-month-after-save
 
