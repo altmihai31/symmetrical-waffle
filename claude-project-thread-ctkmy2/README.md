@@ -1,4 +1,4 @@
-# Daybook screenshots (claude-project-thread-ctkmy2, 379065a)
+# Daybook screenshots (claude-project-thread-ctkmy2, bc4549d)
 
 ## 01-month
 
@@ -83,3 +83,7 @@
 ## 20-day-after-zoom
 
 <img src="20-day-after-zoom.png" width="320">
+
+## 21-month-peek
+
+<img src="21-month-peek.png" width="320">
