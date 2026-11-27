@@ -1,4 +1,4 @@
-# Daybook screenshots (claude-project-thread-ctkmy2, 0d32227)
+# Daybook screenshots (claude-project-thread-ctkmy2, 4811185)
 
 ## 01-month
 
@@ -91,3 +91,7 @@
 ## 22-event-card
 
 <img src="22-event-card.png" width="320">
+
+## 23-drawn-event
+
+<img src="23-drawn-event.png" width="320">
