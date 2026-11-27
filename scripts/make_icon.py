@@ -1,81 +1,76 @@
 #!/usr/bin/env python3
-"""Draws the Daybook app icon and launch logo: a dark calendar card with a blue
-header and rows of tiles with coloured top bars, like the app's week view.
+"""Draws the Daybook app icon and launch logo in the same language as Stash's icon:
+dark gradient, a dark card with a thick light outline, coloured dots and grey text bars.
 Run from the repo root: python3 scripts/make_icon.py"""
 from PIL import Image, ImageDraw
 import os
 
-S = 4  # supersampling factor
-BLUE, GREEN, ORANGE, RED, PURPLE = "#4d82ff", "#2fb35a", "#ff9500", "#ff2d55", "#a259e6"
-CARD, EMPTY = "#23262b", "#2e3137"
+S = 4  # supersampling
+TOP, BOTTOM = "#39393b", "#141416"
+CARD, OUTLINE, BAR, DIM = "#2c2c2e", "#ebebf0", "#8e8e93", "#48484a"
+BLUE, PURPLE, ORANGE, GREEN = "#5ea2ff", "#bf9bff", "#ff9f0a", "#30d158"
 
-def hex2rgb(h):
-    h = h.lstrip("#"); return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-
-def mix(a, b, t):
-    a, b = hex2rgb(a), hex2rgb(b)
-    return tuple(round(a[i] * (1 - t) + b[i] * t) for i in range(3))
-
-ROWS = [
-    [RED, BLUE, BLUE, None],
-    ["task:" + ORANGE, GREEN, PURPLE, BLUE],
-    [BLUE, None, GREEN, ORANGE],
+# Day dots, 4 columns x 3 rows. None = an empty day.
+GRID = [
+    [BLUE, None, PURPLE, None],
+    [None, "today", None, GREEN],
+    [ORANGE, None, BLUE, None],
 ]
 
-def draw_card(d, x0, y0, w, h, s):
-    r = 0.115 * w
-    d.rounded_rectangle([x0, y0, x0 + w, y0 + h], radius=r, fill=hex2rgb(CARD))
-    head = 0.2 * h
-    # Blue header with square bottom corners.
-    d.rounded_rectangle([x0, y0, x0 + w, y0 + head], radius=r, fill=hex2rgb(BLUE),
-                        corners=(True, True, False, False))
-    # Today marker: a white pill on the header.
-    pw, ph = 0.22 * w, 0.055 * h
-    d.rounded_rectangle([x0 + 0.08 * w, y0 + head / 2 - ph / 2, x0 + 0.08 * w + pw, y0 + head / 2 + ph / 2],
-                        radius=ph / 2, fill=(255, 255, 255))
-    pad, gap = 0.06 * w, 0.025 * w
-    gx0, gy0 = x0 + pad, y0 + head + pad * 0.9
-    gw, gh = w - 2 * pad, (y0 + h - pad) - gy0
-    cols, rows = 4, len(ROWS)
-    tw, th = (gw - gap * (cols - 1)) / cols, (gh - gap * (rows - 1)) / rows
-    bar = 0.13 * th
-    for ri, row in enumerate(ROWS):
-        for ci, spec in enumerate(row):
-            tx, ty = gx0 + ci * (tw + gap), gy0 + ri * (th + gap)
-            rad = 0.08 * tw
-            if spec is None:
-                d.rounded_rectangle([tx, ty, tx + tw, ty + th], radius=rad, fill=hex2rgb(EMPTY))
-                continue
-            task = spec.startswith("task:")
-            col = spec.split(":")[-1]
-            fill = hex2rgb(EMPTY) if task else mix(CARD, col, 0.38)
-            tx, ty, tw_, th_ = round(tx), round(ty), round(tw), round(th)
-            d.rounded_rectangle([tx, ty, tx + tw_, ty + th_], radius=rad, fill=hex2rgb(col))
-            d.rounded_rectangle([tx, ty + round(bar), tx + tw_, ty + th_], radius=rad, fill=fill,
-                                corners=(False, False, True, True))
-            if task:  # checkbox outline
-                cb = 0.34 * tw
-                cx, cy = tx + 0.16 * tw, ty + bar + 0.16 * th
-                d.rounded_rectangle([cx, cy, cx + cb, cy + cb], radius=cb * 0.28,
-                                    outline=hex2rgb(col), width=round(0.06 * tw))
+def rgb(h):
+    h = h.lstrip("#"); return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+def draw_calendar(d, ox, oy, k):
+    """Draws the card in a 1024-unit design space, scaled by k and offset by (ox, oy)."""
+    P = lambda x, y: (ox + x * k, oy + y * k)
+    def rrect(x0, y0, x1, y1, r, **kw):
+        if "width" in kw: kw["width"] = round(kw["width"] * k)
+        d.rounded_rectangle([*P(x0, y0), *P(x1, y1)], radius=r * k, **kw)
+    def dot(cx, cy, r, **kw):
+        if "width" in kw: kw["width"] = round(kw["width"] * k)
+        d.ellipse([*P(cx - r, cy - r), *P(cx + r, cy + r)], **kw)
+
+    # Card with the same 20-unit light outline as Stash's cards.
+    rrect(192, 212, 832, 852, 110, fill=rgb(CARD), outline=rgb(OUTLINE), width=20)
+    # Header: a divider line, like a calendar page's top.
+    rrect(202, 352, 822, 372, 0, fill=rgb(OUTLINE))
+    # Binder tabs over the top edge.
+    for x in (372, 652):
+        rrect(x - 20, 158, x + 20, 268, 20, fill=rgb(OUTLINE))
+    # Month title: a coloured dot and a grey bar, as on Stash's cards.
+    dot(282, 290, 30, fill=rgb(BLUE))
+    rrect(338, 280, 560, 300, 10, fill=rgb(BAR))
+    # Days.
+    xs, ys, r = [287 + i * 150 for i in range(4)], [470, 600, 730], 34
+    for ri, row in enumerate(GRID):
+        for ci, c in enumerate(row):
+            cx, cy = xs[ci], ys[ri]
+            if c is None:
+                dot(cx, cy, r, fill=rgb(DIM))
+            elif c == "today":
+                dot(cx, cy, r, fill=rgb(DIM))
+                dot(cx, cy, r + 16, outline=rgb(OUTLINE), width=12)
+            else:
+                dot(cx, cy, r, fill=rgb(c))
 
 def icon(path, size=1024):
     W = size * S
     img = Image.new("RGB", (W, W))
     d = ImageDraw.Draw(img)
-    top, bot = hex2rgb("#2b2e35"), hex2rgb("#121316")
+    t, b = rgb(TOP), rgb(BOTTOM)
     for y in range(W):
-        t = y / (W - 1)
-        d.line([(0, y), (W, y)], fill=tuple(round(top[i] * (1 - t) + bot[i] * t) for i in range(3)))
-    w = 0.74 * W
-    draw_card(d, (W - w) / 2, 0.15 * W, w, 0.72 * W, S)
+        f = y / (W - 1)
+        d.line([(0, y), (W, y)], fill=tuple(round(t[i] * (1 - f) + b[i] * f) for i in range(3)))
+    draw_calendar(d, 0, 0, S)
     img.resize((size, size), Image.LANCZOS).save(path)
 
 def logo(path, size=600):
+    # The card alone on transparency, for the launch screen (cropped to the card's bounds).
     W = size * S
     img = Image.new("RGBA", (W, W), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    draw_card(d, 0, 0.0257 * W, W, 0.973 * W * 0.973, S)
+    k = W / 760
+    draw_calendar(d, -132 * k, -126 * k, k)
     img.resize((size, size), Image.LANCZOS).save(path)
 
 base = "Daybook/Resources/Assets.xcassets"
